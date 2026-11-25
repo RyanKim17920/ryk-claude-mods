@@ -1,0 +1,109 @@
+{
+  "name": "notice-dedupe",
+  "version": "0.2.0",
+  "description": "Drops task notifications that carry no information and near-exact repeats of notifications, failures, peer messages, scheduled prompts and agent messages, so they stop waking the main thread; counts what it drops across sessions.",
+  "author": {
+    "name": "Ryan Kim"
+  },
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "dropWaiting": {
+      "type": "boolean",
+      "title": "Drop repeated \"has not reported yet\" notifications",
+      "description": "Let the first notification saying an agent has not reported yet through for each task, and drop the later ones inside the window.",
+      "default": true
+    },
+    "dropDelivered": {
+      "type": "boolean",
+      "title": "Drop \"report was delivered\" notifications",
+      "description": "Drop a completed-task notification whose whole result says the report already arrived as a message.",
+      "default": true
+    },
+    "foldMode": {
+      "type": "string",
+      "title": "Folded \"report was delivered\" rows",
+      "description": "A notification folded into a turn is a row the engine always keeps. \"empty\" empties it (the engine stores \"(no content)\"); \"stub\" replaces it with one line saying it was omitted.",
+      "options": [
+        "empty",
+        "stub"
+      ],
+      "default": "empty"
+    },
+    "dropRepeats": {
+      "type": "boolean",
+      "title": "Drop exact repeats",
+      "description": "Drop a notification identical to the last one for the same task, and a scheduled or plugin prompt identical to one already entered, inside the window. Timestamps, durations, token counts, long ids and session paths are ignored when comparing; other numbers are not.",
+      "default": true
+    },
+    "dropRepeatFailures": {
+      "type": "boolean",
+      "title": "Drop repeated failure notifications",
+      "description": "Drop a failed or killed notification identical to the last one for the same task inside the window. The first failure, and any that differs, always passes.",
+      "default": true
+    },
+    "dropPeerRepeats": {
+      "type": "boolean",
+      "title": "Drop repeated cross-session messages",
+      "description": "Drop a <cross-session-message> from another Claude session identical to one the same sender already delivered inside the window. Messages shorter than the shortest-message setting are never dropped.",
+      "default": true
+    },
+    "dropIdleAfterReport": {
+      "type": "boolean",
+      "title": "Drop a teammate's idle notices after its report",
+      "description": "When a teammate (or a named agent's SendMessage) reported to this conversation inside the window, drop its idle notices that add nothing to that report: every one holding a closing phrase (\"I'm done\", \"nothing further\"), and the first plain one after it. A notice adds nothing only if, with curly quotes made straight and backticks and */_ emphasis markers taken out, it is plain ASCII text (letters, digits, whitespace and .,;:!?'\"()-/_) and, once its delivery and closing phrases are taken out, is empty or exactly one whole sentence of the report, words in the same order. Closing phrases are kept after a report that left something open. Any other notice, one that reports a failure, or one with no recent report before it, always passes.",
+      "default": true
+    },
+    "aggressiveIdle": {
+      "type": "boolean",
+      "title": "Drop more teammate idle notices (aggressive)",
+      "description": "Also drop, when that teammate reported inside the window, idle notices with no signal word that restate the report, only say they are waiting (\"waiting on\", \"standing by\", \"no change\"), or echo a message to another teammate; and a closing (\"finished\") notice that rewords that report and adds no number, question or signal word it did not already hold. Reads deliveries that bundle several notices. A notice with a new blocker, failure, need, decision, question or result figure, or from a teammate with no recent report, always passes.",
+      "default": false
+    },
+    "refuseRepeatSends": {
+      "type": "boolean",
+      "title": "Refuse repeated agent messages",
+      "description": "Refuse a SendMessage identical to one the same sender already delivered to the same recipient inside the window.",
+      "default": true
+    },
+    "sendMinChars": {
+      "type": "number",
+      "title": "Shortest message checked for repeats",
+      "description": "Messages, and cross-session messages, shorter than this are never refused or dropped as repeats, so a short reply such as \"proceed\" can be sent twice.",
+      "default": 80
+    },
+    "windowMinutes": {
+      "type": "number",
+      "title": "Repeat window (minutes)",
+      "description": "How long a text counts as already seen (1 to 1440; anything else means 30).",
+      "default": 30
+    },
+    "showStatus": {
+      "type": "boolean",
+      "title": "Show the drop count in the status line",
+      "description": "Show \"dedupe: N dropped\" in the status line once something is dropped this session.",
+      "default": true
+    },
+    "showToasts": {
+      "type": "boolean",
+      "title": "Toast each drop",
+      "description": "Raise a toast for every notification or message dropped. Noisy.",
+      "default": false
+    },
+    "driftAlerts": {
+      "type": "boolean",
+      "title": "Warn when the harness wording changes",
+      "description": "Once a day at most, raise a toast when this session's notifications nearly match the boilerplate the filter drops but none match it exactly.",
+      "default": true
+    }
+  },
+  "homepage": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "repository": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "subagents",
+    "notifications",
+    "dedupe"
+  ]
+}

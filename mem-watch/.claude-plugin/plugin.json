@@ -1,0 +1,121 @@
+{
+  "name": "mem-watch",
+  "version": "0.3.0",
+  "description": "Watches macOS free memory and swap, shows them in the status line and alerts once (naming the top memory users) when either crosses its limit. While over, only light commands run. Always caps this session's top-level agents (subagents, and teammates while they work) at 4 and its background jobs at 3.",
+  "author": {
+    "name": "Ryan Kim"
+  },
+  "homepage": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "repository": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "license": "MIT",
+  "keywords": ["macos", "memory", "swap", "status-line", "hooks"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "minFreePercent": {
+      "type": "number",
+      "title": "Minimum free memory (%)",
+      "description": "Alert when the system-wide free memory percentage falls below this.",
+      "default": 28
+    },
+    "maxSwapGb": {
+      "type": "number",
+      "title": "Maximum swap (GB)",
+      "description": "Alert when swap in use rises above this many gigabytes.",
+      "default": 28
+    },
+    "intervalSeconds": {
+      "type": "number",
+      "title": "Check interval (seconds)",
+      "description": "How often memory and swap are read.",
+      "default": 60
+    },
+    "wakeMainOnAlert": {
+      "type": "boolean",
+      "title": "Wake the main thread on alert",
+      "description": "Submit one prompt to the main thread when an alert fires, with the figures and the top processes.",
+      "default": true
+    },
+    "cooldownMinutes": {
+      "type": "number",
+      "title": "Alert cooldown (minutes)",
+      "description": "At most one alert in this many minutes.",
+      "default": 30
+    },
+    "showStatus": {
+      "type": "boolean",
+      "title": "Show the status-line figure",
+      "description": "Show the current figure in the status line.",
+      "default": true
+    },
+    "showToasts": {
+      "type": "boolean",
+      "title": "Show toasts",
+      "description": "Show a toast when an alert fires and each time the gate refuses a command.",
+      "default": true
+    },
+    "systemNotifications": {
+      "type": "boolean",
+      "title": "System notifications",
+      "description": "Send a macOS notification when an alert fires.",
+      "default": true
+    },
+    "gateHeavyWork": {
+      "type": "boolean",
+      "title": "Gate new heavy work",
+      "description": "While memory is over a limit, refuse new work: the Agent tool and every Bash command that is not light (by gateMode). Reading, inspecting, stopping and cleanup always run. Lifts by itself on recovery.",
+      "default": true
+    },
+    "gateMode": {
+      "type": "string",
+      "title": "Gate mode",
+      "description": "allowlist (default): while gated, a Bash command runs only if every part of it is light (reading, inspecting, small file chores like cp and mv, everyday git such as add, commit and push, stopping, cleanup, --help); everything else is refused, and so is a light name reached by a path or with PATH, a pager or an editor changed. patterns: the old gate, which refuses only commands matching its heavy-work rules.",
+      "options": [
+        "allowlist",
+        "patterns"
+      ],
+      "default": "allowlist"
+    },
+    "gateBlockPatterns": {
+      "type": "string",
+      "title": "Extra gate block patterns",
+      "description": "Regular expressions (separated by ' ;; ') for more Bash commands to refuse while gated, even light ones, matched against each part of a command with wrappers like sudo or env stripped.",
+      "default": ""
+    },
+    "gateAllowPatterns": {
+      "type": "string",
+      "title": "Gate allow patterns",
+      "description": "Regular expressions (separated by ' ;; ') for Bash commands that always run while gated, matched against each part of a command with wrappers like sudo or env stripped. In allowlist mode, this is how to add a command to the light list.",
+      "default": ""
+    },
+    "gateLightSubcommands": {
+      "type": "string",
+      "title": "Gate light subcommands",
+      "description": "Tool subcommands (one or two words after the tool, separated by ' ;; ') that count as light in allowlist mode, like git status: for example 'mytool status ;; mytool list ;; mytool jobs show'. The tool's global flags before the subcommand are skipped and any arguments after it are allowed. Other subcommands of the tool stay refused while gated.",
+      "default": ""
+    },
+    "maxConcurrentAgents": {
+      "type": "number",
+      "title": "Most top-level agents at once",
+      "description": "Refuse a new subagent or teammate from the main thread while this many of this session's top-level agents are running, whatever memory says. A teammate counts only while it works a task, not while it waits idle for a message. Agents that a subagent or teammate starts are never refused by the cap and do not count (the memory gate still applies to them). Counted from the session's own agent list, so a finish is never missed and each session has its own quota. 0 turns the cap off.",
+      "default": 4
+    },
+    "capTeammates": {
+      "type": "boolean",
+      "title": "Cap teammates too",
+      "description": "Count teammates (every named Agent spawn when teammateMode is on) against the agent cap while they work a task, and refuse a new one past it. An idle teammate never holds a slot. Off exempts teammates from the cap entirely.",
+      "default": true
+    },
+    "maxBackgroundJobs": {
+      "type": "number",
+      "title": "Most background jobs at once",
+      "description": "Refuse a new run_in_background Bash command while this many background jobs this session started are still running, whatever memory says. 0 turns the cap off.",
+      "default": 3
+    },
+    "backgroundJobExpiryMinutes": {
+      "type": "number",
+      "title": "Background job expiry (minutes)",
+      "description": "A background job whose finish was never seen stops counting against maxBackgroundJobs after this long, so a lost notification holds a slot for at most this long.",
+      "default": 30
+    }
+  }
+}

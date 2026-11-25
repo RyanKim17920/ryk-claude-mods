@@ -1,0 +1,69 @@
+{
+  "name": "agent-budget",
+  "version": "0.3.0",
+  "description": "Tracks each agent's context size and warns as it grows. Past the threshold main writes its handoff file and is compacted in place, then reads that file first; a subagent writes its handoff brief and stops.",
+  "author": {
+    "name": "Ryan Kim"
+  },
+  "homepage": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "repository": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "license": "MIT",
+  "keywords": ["context", "subagents", "handoff", "compaction", "hooks"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "warnTokens": {
+      "type": "number",
+      "title": "Warn at (tokens)",
+      "description": "Toast once when an agent's context first reaches this size. Capped at 60% of the point where the engine would auto-compact that agent.",
+      "default": 300000
+    },
+    "rotateTokens": {
+      "type": "number",
+      "title": "Hand off at (tokens)",
+      "description": "Past this size main refreshes its handoff file and is compacted in place when its turn ends; a subagent is told to write its handoff brief and stop. Capped at 75% of the point where the engine would auto-compact that agent, so the handoff always comes first.",
+      "default": 400000
+    },
+    "repeatTokens": {
+      "type": "number",
+      "title": "Repeat the handoff note every (tokens)",
+      "description": "After the first handoff note, repeat it once per this much further growth until a compaction resets the count.",
+      "default": 50000
+    },
+    "includeMain": {
+      "type": "boolean",
+      "title": "Track the main thread",
+      "description": "Track the main thread too: past the threshold it writes its handoff file and is compacted in place, as often as it fills up, never rotated to a new session.",
+      "default": true
+    },
+    "handoffDir": {
+      "type": "string",
+      "title": "Main's handoff folder",
+      "description": "Absolute folder (or one under ~/) main's handoff goes under, as <handoffDir>/<sessionId>/main.md, overwritten each cycle. Empty means handoffs in Claude's config folder: $CLAUDE_CONFIG_DIR/handoffs, else ~/.claude/handoffs.",
+      "default": ""
+    },
+    "handoffMaxAgeDays": {
+      "type": "number",
+      "title": "Remove main's handoffs older than (days)",
+      "description": "Once per load, after a compaction of main, other sessions' <handoffDir>/<sessionId>/main.md files older than this are removed, and each folder left empty with them. 0 keeps every file.",
+      "default": 30
+    },
+    "showStatus": {
+      "type": "boolean",
+      "title": "Show the status line entry",
+      "description": "Show the largest live subagent's size in the status line. Display only: tracking and notes run the same either way.",
+      "default": true
+    },
+    "showToasts": {
+      "type": "boolean",
+      "title": "Show toasts",
+      "description": "Toast at the warning, at the handoff threshold, and when main cannot be compacted. Display only: tracking and notes run the same either way.",
+      "default": true
+    },
+    "addRuleToSpawns": {
+      "type": "boolean",
+      "title": "Add the rotation rule to spawned agents",
+      "description": "Append one standing sentence to every spawned agent's prompt telling it to follow an [agent-budget] note. Without it an agent may treat the note as untrusted and ignore it.",
+      "default": true
+    }
+  }
+}

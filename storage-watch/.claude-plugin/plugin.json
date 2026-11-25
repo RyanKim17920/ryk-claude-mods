@@ -1,0 +1,97 @@
+{
+  "name": "storage-watch",
+  "version": "0.3.0",
+  "description": "Watches free disk space on the macOS data volume, shows it in the status line and alerts once as it falls through each tier (20, 10, 5, 1 GB), naming the biggest space users. At or below 5 GB free only light commands and cleanup run.",
+  "author": {
+    "name": "Ryan Kim"
+  },
+  "homepage": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "repository": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "license": "MIT",
+  "keywords": ["macos", "disk-space", "storage", "status-line", "hooks"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "tiersGb": {
+      "type": "string",
+      "title": "Alert tiers (GB free)",
+      "description": "Comma-separated free-space tiers in GB. Each alerts once as free space falls through it; a deeper tier always alerts. All re-arm once free space is back above the top tier plus 10%. Malformed input uses the default.",
+      "default": "20,10,5,1"
+    },
+    "intervalSeconds": {
+      "type": "number",
+      "title": "Check interval (seconds)",
+      "description": "How often free disk space is read.",
+      "default": 300
+    },
+    "wakeMainOnAlert": {
+      "type": "boolean",
+      "title": "Wake the main thread on alert",
+      "description": "Submit one short prompt to the main thread when an alert fires. Off by default: an alert shows a toast, the status line and a notification only.",
+      "default": false
+    },
+    "cooldownMinutes": {
+      "type": "number",
+      "title": "Alert cooldown (minutes)",
+      "description": "A tier does not alert again within this many minutes. A deeper tier is never held back.",
+      "default": 60
+    },
+    "showStatus": {
+      "type": "boolean",
+      "title": "Show the status-line figure",
+      "description": "Show the current figure in the status line.",
+      "default": true
+    },
+    "showToasts": {
+      "type": "boolean",
+      "title": "Show toasts",
+      "description": "Show a toast when an alert fires and each time the gate refuses a command.",
+      "default": true
+    },
+    "systemNotifications": {
+      "type": "boolean",
+      "title": "System notifications",
+      "description": "Send a macOS notification when an alert fires.",
+      "default": true
+    },
+    "gateBelowGb": {
+      "type": "number",
+      "title": "Gate at or below (GB free)",
+      "description": "Refuse new heavy work while free disk space is at or below this many GB.",
+      "default": 5
+    },
+    "gateHeavyWork": {
+      "type": "boolean",
+      "title": "Gate new heavy work",
+      "description": "While free disk space is at or below gateBelowGb, refuse new work: the Agent tool and every Bash command that is not light (by gateMode). Reading, inspecting, stopping and cleanup (rm, docker prune, cache cleans) always run, since they free disk. Lifts by itself on recovery.",
+      "default": true
+    },
+    "gateMode": {
+      "type": "string",
+      "title": "Gate mode",
+      "description": "allowlist (default): while gated, a Bash command runs only if every part of it is light (reading, inspecting, cleanup, small file chores, everyday git, --help); everything else is refused, including a tree copy (cp -r, ditto) and a light name reached by a path or with PATH, a pager or an editor changed. patterns: the old gate, which refuses only commands matching its heavy-work rules.",
+      "options": [
+        "allowlist",
+        "patterns"
+      ],
+      "default": "allowlist"
+    },
+    "gateBlockPatterns": {
+      "type": "string",
+      "title": "Extra gate block patterns",
+      "description": "Regular expressions (separated by ' ;; ') for more Bash commands to refuse while gated, even light ones, matched against each part of a command with wrappers like sudo or env stripped.",
+      "default": ""
+    },
+    "gateAllowPatterns": {
+      "type": "string",
+      "title": "Gate allow patterns",
+      "description": "Regular expressions (separated by ' ;; ') for Bash commands that always run while gated, matched against each part of a command with wrappers like sudo or env stripped. In allowlist mode, this is how to add a command to the light list.",
+      "default": ""
+    },
+    "gateLightSubcommands": {
+      "type": "string",
+      "title": "Gate light subcommands",
+      "description": "Tool subcommands (one or two words after the tool, separated by ' ;; ') that count as light in allowlist mode, like git status: for example 'mytool status ;; mytool list ;; mytool jobs show'. The tool's global flags before the subcommand are skipped and any arguments after it are allowed. Other subcommands of the tool stay refused while gated.",
+      "default": ""
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "ryk-claude-mods",
+  "owner": {
+    "name": "Ryan Kim"
+  },
+  "description": "Claude Code mods (plugins built on TypeScript hook modules) for long sessions with many agents: context budgets and handoffs, compaction focus, standing goals, branch ownership, notification de-duplication, and memory and disk guards for macOS.",
+  "plugins": [
+    {
+      "name": "agent-budget",
+      "source": "./agent-budget",
+      "description": "Tracks each agent's context size, warns as it grows and tells a subagent past the rotation threshold to write its handoff brief and stop."
+    },
+    {
+      "name": "branch-owners",
+      "source": "./branch-owners",
+      "description": "Records which agent created each git branch and worktree, and lists the unmerged ones with their owners (/branch-owners)."
+    },
+    {
+      "name": "focus-compact",
+      "source": "./focus-compact",
+      "description": "Gives every compaction, automatic ones included, a standing focus; keeps each summary as a brief on disk; and escalates to a handoff when compaction stops paying (/focus-compact)."
+    },
+    {
+      "name": "goal-refresh",
+      "source": "./goal-refresh",
+      "description": "Keeps a session's standing goal (and the native /goal condition) fresh in long sessions with a short reminder on turns already happening, and lets the goal be updated through discussion."
+    },
+    {
+      "name": "mem-watch",
+      "source": "./mem-watch",
+      "description": "Watches macOS free memory and swap, shows them in the status line and alerts once when either crosses its limit. Until memory recovers, a light-list gate lets only reading, cleanup, file chores and everyday git run and refuses everything else (subagents, Docker, evals, builds). A cap holds each session to 4 top-level subagents and 3 background jobs at once, whatever memory says."
+    },
+    {
+      "name": "notice-dedupe",
+      "source": "./notice-dedupe",
+      "description": "Drops task notifications that carry no information and near-exact repeats of notifications, failures, peer messages, scheduled prompts and agent messages, so they stop waking the main thread; counts what it drops across sessions."
+    },
+    {
+      "name": "storage-watch",
+      "source": "./storage-watch",
+      "description": "Watches free disk space on the macOS data volume, shows it in the status line and alerts once as it falls through each tier (20, 10, 5, 1 GB). At or below 5 GB free, a light-list gate lets only reading, cleanup, file chores and everyday git run and refuses everything else (subagents, Docker, downloads, installs, tree copies). It has no concurrency cap; mem-watch holds that."
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "name": "focus-compact",
+  "version": "0.2.0",
+  "author": {
+    "name": "Ryan Kim"
+  },
+  "homepage": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "repository": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "license": "MIT",
+  "keywords": ["compaction", "context", "handoff", "summaries", "hooks"],
+  "description": "Gives every compaction, automatic ones included, a standing focus; keeps each summary as a brief on disk; and asks a subagent for a handoff when compaction stops paying (main keeps compacting in place) (/focus-compact).",
+  "userConfig": {
+    "focus": {
+      "type": "string",
+      "title": "Standing focus",
+      "description": "What every compaction summary is told to keep. Text typed after /compact is added after it.",
+      "default": "Focus the summary on: (1) what we are building and why; (2) the restrictions, rules and goals in place, quoting the user's own constraints and decisions exactly rather than paraphrasing; (3) current state: done, partial, not started, with branch names, SHAs and file paths exactly; (4) what we need to build next, in order; (5) traps and dead ends already ruled out. Drop tool output, logs and exploration that no longer matter."
+    },
+    "briefDir": {
+      "type": "string",
+      "title": "Brief folder",
+      "description": "Absolute folder (or one under ~/) the compaction briefs are written under, as <briefDir>/<sessionId>/<agent-or-main>-<n>.md. Empty means compact-briefs in Claude's config folder: $CLAUDE_CONFIG_DIR/compact-briefs, else ~/.claude/compact-briefs.",
+      "default": ""
+    },
+    "keepBriefs": {
+      "type": "number",
+      "title": "Briefs kept per conversation",
+      "description": "After each brief is written, only the newest this many of that conversation's briefs are kept. 0 keeps them all.",
+      "default": 30
+    },
+    "briefMaxAgeDays": {
+      "type": "number",
+      "title": "Remove briefs older than (days)",
+      "description": "Once per load, at the first recorded compaction, other sessions' briefs older than this are removed, and each folder left empty with them. 0 keeps them all.",
+      "default": 30
+    },
+    "showToasts": {
+      "type": "boolean",
+      "title": "Show toasts",
+      "description": "Toast when compaction stops paying. Display only: counting, briefs and the subagent's handoff note run the same either way.",
+      "default": true
+    },
+    "handoffAfter": {
+      "type": "number",
+      "title": "Hand off after",
+      "description": "The number of compactions of one subagent's conversation at which it is asked for a handoff. Main is never asked: it compacts as often as it needs.",
+      "default": 3
+    },
+    "minShrinkRatio": {
+      "type": "number",
+      "title": "Poor shrink ratio",
+      "description": "A compaction that leaves more than this share of the tokens (after / before) asks a subagent for a handoff, and toasts for main.",
+      "default": 0.6
+    },
+    "minTokensForRatio": {
+      "type": "number",
+      "title": "Smallest conversation the ratio judges",
+      "description": "The poor-shrink rule applies only when the conversation held at least this many tokens before compaction. The count rule is unaffected.",
+      "default": 50000
+    }
+  }
+}

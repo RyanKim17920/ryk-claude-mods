@@ -1,0 +1,25 @@
+{
+  "name": "branch-owners",
+  "version": "0.2.0",
+  "author": { "name": "Ryan Kim" },
+  "homepage": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "repository": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "license": "MIT",
+  "keywords": ["git", "branches", "worktrees", "subagents", "hooks"],
+  "description": "Records which agent created each git branch and worktree, and lists the unmerged ones with their owners (/branch-owners).",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "baseBranch": {
+      "type": "string",
+      "title": "Base branch",
+      "description": "The branch that unmerged branches are measured against. Empty: origin/HEAD, then main. A value starting with - is refused.",
+      "default": ""
+    },
+    "exportPath": {
+      "type": "string",
+      "title": "Export path",
+      "description": "Where `/branch-owners json` writes the table as JSON for a ledger script. Empty: no file. A leading ~/ is the home directory.",
+      "default": ""
+    }
+  }
+}

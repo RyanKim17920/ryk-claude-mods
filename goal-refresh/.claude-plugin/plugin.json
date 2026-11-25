@@ -1,0 +1,62 @@
+{
+  "name": "goal-refresh",
+  "version": "0.1.0",
+  "description": "Keeps a session's standing goal (and the native /goal condition) fresh in long sessions by re-injecting a short reminder on turns already happening, and lets the goal be updated through discussion (goal_update tool, /goal-refresh).",
+  "author": {
+    "name": "Ryan Kim"
+  },
+  "homepage": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "repository": "https://github.com/RyanKim17920/ryk-claude-mods",
+  "license": "MIT",
+  "keywords": ["goals", "long-sessions", "reminders", "context", "hooks"],
+  "userConfig": {
+    "everyTurns": {
+      "type": "number",
+      "title": "Refresh every N turns",
+      "description": "Re-inject the goal reminder after this many main-thread turns since the last one. 0 turns this trigger off.",
+      "default": 10
+    },
+    "afterCompact": {
+      "type": "boolean",
+      "title": "Refresh after compaction",
+      "description": "Re-inject the goal reminder at the first chance after the main conversation is compacted.",
+      "default": true
+    },
+    "minIntervalMinutes": {
+      "type": "number",
+      "title": "Refresh after this many minutes",
+      "description": "Re-inject the goal reminder once this many minutes have passed since the last one (at least one turn in between). 0 turns this trigger off.",
+      "default": 20
+    },
+    "mirrorNativeGoal": {
+      "type": "boolean",
+      "title": "Include the native /goal condition",
+      "description": "Read the active /goal stop condition from the session transcript and include it in the reminder and status line.",
+      "default": true
+    },
+    "nativeReadMinutes": {
+      "type": "number",
+      "title": "Re-read the transcript after this many minutes",
+      "description": "Once a native /goal has been seen, a main-thread turn re-reads the transcript for it at most this often; a compaction, a resume, /goal, SetGoal and each reminder read it at once. 0 reads on every turn.",
+      "default": 10
+    },
+    "showStatus": {
+      "type": "boolean",
+      "title": "Show the goal in the status line",
+      "description": "Show a truncated goal in the status line while one is set.",
+      "default": true
+    },
+    "showToasts": {
+      "type": "boolean",
+      "title": "Show toasts",
+      "description": "Show a toast with the old and new goal each time the model updates it.",
+      "default": true
+    },
+    "systemNotifications": {
+      "type": "boolean",
+      "title": "System notifications",
+      "description": "Also send a macOS notification each time the model updates the goal.",
+      "default": false
+    }
+  }
+}
