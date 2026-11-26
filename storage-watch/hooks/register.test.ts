@@ -658,6 +658,19 @@ test('an alert that wakes the model names them too; without Docker only the fold
   expect(w.prompts[0]).toContain('Nothing has been deleted; do not delete files unless the user asks.')
 })
 
+test('on Linux (no macOS data volume) it reads / and names the Linux cache folders', WAKE, async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.isDataVolumeMissing = true
+  w.du = { '/Users/me/.local/share/Trash': 9 * GB, '/Users/me/.m2/repository': 3 * GB, '/Users/me/.local/share/containers': 6 * GB }
+  w.freeGb = 15
+  await $.session.start(START)
+  await clock.advance(1000)
+  expect(w.dfPaths.slice(0, 2)).toEqual(['/System/Volumes/Data', '/'])
+  expect(w.statuses.at(-1)).toContain('15')
+  expect(w.prompts[0]).toContain('Largest space users: ~/.local/share/Trash 9.7 GB; ~/.local/share/containers 6.4 GB; ~/.m2/repository 3.2 GB.')
+})
+
 test('space users are measured only on an alert or while gated, and at most every 30 minutes', async ($, on) => {
   const clock = mock.clock(on)
   const w = world(on)

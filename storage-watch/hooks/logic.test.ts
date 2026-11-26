@@ -243,6 +243,16 @@ test('the space users: the three biggest, largest first, nothing under 0.1 GB', 
   expect(CACHE_DIRS.every(dir => !dir.startsWith('/') && !dir.startsWith('~'))).toBe(true)
 })
 
+test('the cache folders cover Linux too, and none is inside another so nothing is counted twice', () => {
+  for (const dir of ['.cache', '.npm', '.local/share/Trash', '.local/share/containers', '.local/share/docker', '.m2/repository']) {
+    expect(CACHE_DIRS).toContain(dir)
+  }
+  expect(new Set(CACHE_DIRS).size).toBe(CACHE_DIRS.length)
+  for (const outer of CACHE_DIRS) {
+    expect(CACHE_DIRS.filter(inner => inner.startsWith(`${outer}/`))).toEqual([])
+  }
+})
+
 test('a tree copy fills a disk: refused by the disk gate in allowlist mode, however it is reached; a single-file copy is not', () => {
   const allowlist = { mode: 'allowlist', overrides: { extraBlock: [], extraAllow: [] } } as const
   const disk = (command: string) => diskHeavyWork({ tool: 'Bash', command }, allowlist)

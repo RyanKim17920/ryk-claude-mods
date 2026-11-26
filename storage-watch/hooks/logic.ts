@@ -237,8 +237,10 @@ export function alertPrompt(tier: number, reading: Reading, culprits: readonly s
 export type SpaceUser = { name: string; bytes: number }
 
 /**
- * Well-known folders that grow large on a developer's Mac, under the home folder. Each is measured on
- * its own with `du -sk` under a timeout, so one slow folder costs only itself.
+ * Well-known folders that grow large on a developer's Mac or Linux machine, under the home folder. Each
+ * is measured on its own with `du -sk` under a timeout, so one slow folder costs only itself, and one
+ * missing on this OS prints nothing. None is inside another, so no space is counted twice. Root-owned
+ * stores (Docker's `/var/lib/docker` on Linux) are left to `docker system df`.
  */
 export const CACHE_DIRS: readonly string[] = [
   'Library/Caches',
@@ -251,6 +253,11 @@ export const CACHE_DIRS: readonly string[] = [
   'miniconda3/pkgs',
   '.gradle/caches',
   'go/pkg/mod',
+  // Linux: the desktop trash, rootless Podman and Docker storage, and Maven's repository.
+  '.local/share/Trash',
+  '.local/share/containers',
+  '.local/share/docker',
+  '.m2/repository',
 ]
 
 /** How many space users are named. */
