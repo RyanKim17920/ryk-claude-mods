@@ -83,7 +83,7 @@ Restart Claude Code to load an update. Each mod's options are in its README and 
 <tr><td valign="top"><a href="mem-watch/README.md">mem-watch</a></td><td>Watches macOS free memory and swap, shows them in the status line and alerts once when either crosses its limit, naming the top memory users. While over, only light commands (reading, inspecting, file chores, everyday git, stopping, cleanup) run. Whatever memory says, it caps each session at 4 top-level subagents (their own children are not capped) and 3 background jobs at once.</td></tr>
 <tr><td colspan="2" align="center"><img src="docs/demo/mem-watch.gif" alt="mem-watch demo" width="640"></td></tr>
 <tr><td valign="top"><a href="storage-watch/README.md">storage-watch</a></td><td>Watches free disk space, shows it in the status line and alerts as it falls through each tier (20, 10, 5, 1 GB), naming the biggest space users. At or below 5 GB only light commands and cleanup run, and tree copies (<code>cp -r</code>) are refused.</td></tr>
-<tr><td colspan="2" align="center"><img src="docs/demo/storage-watch.gif" alt="storage-watch demo" width="640"></td></tr>
+<tr><td colspan="2" align="center"><img src="docs/demo/storage-watch.gif" alt="storage-watch: replay of real full-disk build failures (Nov 16) and a 98% full disk (Nov 21); no real after clip yet" width="640"></td></tr>
 </table>
 
 Each clip is a short walkthrough built from real recorded sessions. Captions and highlights are added, and terminal text is cropped but never edited. For storage-watch and branch-owners, the clip compares runs without and with the mod. Where a clip used a scaled-down limit, it says so on screen.
