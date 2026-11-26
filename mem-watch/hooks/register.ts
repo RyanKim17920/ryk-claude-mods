@@ -67,9 +67,14 @@ const READING = 'reading'
 /** The `$.store` key of the latest culprits, stamped `at`: taken by a tick while over a limit, read by the gate and the alert. */
 const CULPRITS = 'culprits'
 const RUN = { timeoutMs: 10_000 }
-/** Said once in the transcript when no reading has ever come, so a blank status line is not a mystery. */
+/**
+ * How many ticks in a row must find no reading, with no source ever having read, before the mod says
+ * so: one failed read (a `memory_pressure` timeout on a busy Mac) is not a machine without a source.
+ */
+const NO_READING_TICKS = 3
+/** Said once in the transcript when no reading has come in NO_READING_TICKS tries, so a blank status line is not a mystery. */
 const NO_READING =
-  'mem-watch: no memory reading on this machine (it reads memory_pressure and sysctl on macOS, /proc/meminfo on Linux). ' +
+  `mem-watch: no memory reading on this machine after ${NO_READING_TICKS} tries (it reads memory_pressure and sysctl on macOS, /proc/meminfo on Linux). ` +
   'Until one comes the status line stays empty and the memory gate stays open; the agent and background-job caps apply either way.'
 /** `docker stats` hangs on a daemon that is stuck: it gets less time, and a failure only drops the containers. */
 const DOCKER_RUN = { timeoutMs: 5_000 }
@@ -89,6 +94,8 @@ let isBusy = false
 let source: 'macos' | 'linux' | null = null
 /** macOS's physical memory in GB, read once (a Linux reading carries its own). */
 let macRamGb: number | null = null
+/** Ticks in a row that found no reading; a reading resets it. */
+let missedTicks = 0
 /** Whether this load has said, once, that it has no reading. */
 let hasLoggedNoReading = false
 // Whether a person is at this session's prompt, as `session.start` says; false for a `-p` run or the SDK.
@@ -274,13 +281,16 @@ async function tick($: EngineInterface, config: Config): Promise<void> {
     const snapshot = await readMemory($)
     if (snapshot === null) {
       showStatus($, config, undefined)
-      if (source === null && !hasLoggedNoReading) {
+      missedTicks += 1
+      // Only a machine that has never read and keeps failing has no source; a later reading still counts.
+      if (source === null && missedTicks >= NO_READING_TICKS && !hasLoggedNoReading) {
         hasLoggedNoReading = true
         $.ui.log(NO_READING)
       }
 
       return
     }
+    missedTicks = 0
     const { ramGb, ...reading } = snapshot
     config.limits.maxSwapGb = swapLimitGb(config.swapOptionGb, ramGb)
     showStatus($, config, statusLine(reading, config.limits))

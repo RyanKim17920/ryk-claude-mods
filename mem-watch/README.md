@@ -7,7 +7,7 @@ Watches free memory and swap on a timer: on macOS from `memory_pressure` and `sy
 
 Nothing is ever stopped or killed by the mod.
 
-**Where it works.** macOS and Linux. On any other OS there is no reading: the mod says so once in the transcript, the status line stays empty and the memory gate stays open, but the cap still applies.
+**Where it works.** macOS and Linux. On any other OS there is no reading: after 3 ticks in a row with none the mod says so once in the transcript (a single failed read, such as a `memory_pressure` timeout on a busy Mac, does not count), the status line stays empty and the memory gate stays open, but the cap still applies. A reading that comes later is shown and gates as usual.
 
 ## Install
 
@@ -25,7 +25,7 @@ claude plugin install mem-watch --marketplace RyanKim17920/ryk-claude-mods
 
 ## Options (userConfig)
 
-`minFreePercent` 28 was tuned on a 24 GB Mac: see **Why 28%** below. `maxSwapGb` defaults to 0, which sizes the swap limit to the machine's physical memory (`hw.memsize` on macOS, `MemTotal` on Linux), so a 16 GB machine alerts past 16 GB of swap. Set it above 0 for a fixed limit.
+`minFreePercent` 28 was tuned on a 24 GB Mac: see **Why 28%** below. `maxSwapGb` defaults to 0, which sizes the swap limit to the machine's physical memory (`hw.memsize` on macOS, `MemTotal` on Linux), so a 16 GB machine alerts past 16 GB of swap. Set it above 0 for a fixed limit. If `hw.memsize` fails on macOS there is no swap limit yet (refusals say `no swap limit yet`, and free memory alone can put a reading over); it is retried each tick until it answers, then read no more.
 
 | Option | Default | What it does |
 | --- | --- | --- |

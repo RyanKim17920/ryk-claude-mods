@@ -25,6 +25,10 @@ type World = {
   ramBytes: number
   /** What `cat /proc/meminfo` prints on Linux. */
   meminfo: string
+  /** How many of the next `memory_pressure` runs time out: a busy Mac, not a missing command. */
+  pressureTimeouts: number
+  /** How many of the next `sysctl -n hw.memsize` runs fail. */
+  memsizeFailures: number
   /** What the plugin logged to the transcript. */
   logs: string[]
   statuses: (string | undefined)[]
@@ -54,7 +58,7 @@ const ran = (stdout: string, exitCode = 0) => ({
 
 // Stands for the host beneath the plugin: the three commands, the display, the prompt queue.
 function world(on: On, clock?: { now: () => number }): World {
-  const w: World = { store: new Map(), afterSet: null, isStoreBroken: false, isInteractive: true, free: 60, swap: '5123.25M', isBroken: false, os: 'macos', ramBytes: 24 * 1024 ** 3, meminfo: '', logs: [], statuses: [], toasts: [], notices: [], prompts: [], ran: [], docker: null, argv0: [], agents: [], spawned: [] }
+  const w: World = { store: new Map(), afterSet: null, isStoreBroken: false, isInteractive: true, free: 60, swap: '5123.25M', isBroken: false, os: 'macos', ramBytes: 24 * 1024 ** 3, meminfo: '', pressureTimeouts: 0, memsizeFailures: 0, logs: [], statuses: [], toasts: [], notices: [], prompts: [], ran: [], docker: null, argv0: [], agents: [], spawned: [] }
   let jobs = 0
   on('process.run', ($, e) => {
     w.argv0.push(e.argv[0] ?? '')
@@ -72,11 +76,21 @@ function world(on: On, clock?: { now: () => number }): World {
         return ran('', 255)
       }
 
+      if (e.argv[2] === 'hw.memsize' && w.memsizeFailures > 0) {
+        w.memsizeFailures -= 1
+
+        return ran('', 1)
+      }
+
       return e.argv[2] === 'hw.memsize' ? ran(`${w.ramBytes}\n`) : ran(`total = 43008.00M  used = ${w.swap}  free = 1.00M  (encrypted)`)
     }
     if (e.argv[0] === 'memory_pressure') {
       if (w.os !== 'macos') {
         throw new Error('spawn memory_pressure ENOENT')
+      }
+      if (w.pressureTimeouts > 0) {
+        w.pressureTimeouts -= 1
+        throw new Error('memory_pressure timed out')
       }
 
       return ran(`Pageouts: 1 \n\nSystem-wide memory free percentage: ${w.free}%\n`)
@@ -1039,4 +1053,68 @@ test('neither macOS nor Linux: says so once in the transcript, and the agent cap
   const spawn = await $.agent.spawn({ prompt: 'p', description: 'd', subagent_type: 'general-purpose' } as never)
   expect('deny' in spawn ? spawn.deny : '').not.toBe('')
   expect(w.spawned).toEqual([])
+})
+
+test('macOS: a first read that times out once is not "no reading": nothing is logged and the next tick reads', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.pressureTimeouts = 1
+  await $.session.start(START)
+  await clock.advance(1000)
+  expect(w.statuses.at(-1)).toBeUndefined()
+  await clock.advance(MINUTE)
+  expect(w.statuses.at(-1)).toBe('mem free 60% · swap 5G')
+  await clock.advance(5 * MINUTE)
+  expect(w.logs).toEqual([])
+})
+
+test('macOS: two failed first reads in a row still log nothing; a reading after them works', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.pressureTimeouts = 2
+  await $.session.start(START)
+  await clock.advance(1000 + 2 * MINUTE)
+  expect(w.statuses.at(-1)).toBe('mem free 60% · swap 5G')
+  expect(w.logs).toEqual([])
+})
+
+test('a reading that comes after the "no reading" line is still shown and gates', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.pressureTimeouts = 3
+  w.free = 12
+  await $.session.start(START)
+  await clock.advance(1000 + 2 * MINUTE)
+  expect(w.logs).toHaveLength(1)
+  expect(w.logs[0]).toContain('no memory reading on this machine after 3 tries')
+  await clock.advance(MINUTE)
+  expect(w.statuses.at(-1)).toBe('! mem free 12% · swap 5G')
+  const refused = await $.tool.call(DOCKER)
+  expect(refused.deny).toContain('free 12% · swap 5G')
+  await clock.advance(5 * MINUTE)
+  expect(w.logs).toHaveLength(1)
+})
+
+test('macOS: a failed hw.memsize leaves no swap limit yet and is retried until it reads', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.ramBytes = 8 * 1024 ** 3
+  w.swap = '9.00G'
+  w.memsizeFailures = 2
+  await $.session.start(START)
+  await clock.advance(1000)
+  // Memory size unknown: swap alone cannot put the reading over.
+  expect(w.statuses.at(-1)).toBe('mem free 60% · swap 9G')
+  expect(w.prompts).toEqual([])
+  await clock.advance(MINUTE)
+  expect(w.statuses.at(-1)).toBe('mem free 60% · swap 9G')
+  await clock.advance(MINUTE)
+  expect(w.statuses.at(-1)).toBe('! mem free 60% · swap 9G')
+  expect(w.prompts[0]).toContain('swap at most 8G')
+  // Three ticks, each with vm.swapusage and hw.memsize (two failed, one read).
+  expect(w.argv0.filter(word => word === 'sysctl')).toHaveLength(6)
+  await clock.advance(3 * MINUTE)
+  // Read once it answered: from here on only vm.swapusage runs.
+  expect(w.argv0.filter(word => word === 'sysctl')).toHaveLength(6 + 3)
+  expect(w.logs).toEqual([])
 })
