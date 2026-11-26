@@ -51,6 +51,8 @@ type World = {
   dockerDf: string | null
   /** KB per folder `du -sk` measures; a folder missing here prints nothing. */
   du: Record<string, number>
+  /** Folders with files `du` cannot read: it still prints the total, but exits 1 with errors on stderr. */
+  duDenied: string[]
   /** Every measuring command run (docker, du), by its first word. */
   measured: string[]
 }
@@ -61,7 +63,7 @@ const ran = (stdout: string, exitCode = 0) => ({
 
 // Stands for the host beneath the plugin: df, the display, the prompt queue.
 function world(on: On): World {
-  const w: World = { store: new Map(), afterSet: null, isStoreBroken: false, freeGb: 42, isDataVolumeMissing: false, isBroken: false, isGarbage: false, dfPaths: [], statuses: [], toasts: [], notices: [], prompts: [], ran: [], dockerDf: null, du: {}, measured: [] }
+  const w: World = { store: new Map(), afterSet: null, isStoreBroken: false, freeGb: 42, isDataVolumeMissing: false, isBroken: false, isGarbage: false, dfPaths: [], statuses: [], toasts: [], notices: [], prompts: [], ran: [], dockerDf: null, du: {}, duDenied: [], measured: [] }
   on('process.run', ($, e) => {
     if (e.argv[0] === 'docker' || e.argv[0] === 'du') {
       w.measured.push(e.argv[0])
@@ -69,6 +71,12 @@ function world(on: On): World {
       const kb = w.du[path]
       if (e.argv[0] === 'docker') {
         return w.dockerDf === null ? ran('', 1) : ran(w.dockerDf)
+      }
+
+      if (kb !== undefined && w.duDenied.includes(path)) {
+        const stderr = `du: cannot read directory '${path}/storage/overlay/3f2a/diff/root': Permission denied\n`
+
+        return { value: { exitCode: 1, stdout: `${kb}\t${path}\n`, stderr, isStdoutTruncated: false, isStderrTruncated: false } }
       }
 
       return kb === undefined ? ran('', 1) : ran(`${kb}\t${path}\n`)
@@ -669,6 +677,20 @@ test('on Linux (no macOS data volume) it reads / and names the Linux cache folde
   expect(w.dfPaths.slice(0, 2)).toEqual(['/System/Volumes/Data', '/'])
   expect(w.statuses.at(-1)).toContain('15')
   expect(w.prompts[0]).toContain('Largest space users: ~/.local/share/Trash 9.7 GB; ~/.local/share/containers 6.4 GB; ~/.m2/repository 3.2 GB.')
+})
+
+test('on Linux a du that hits unreadable files still names the folder; rootless Docker is not named twice', WAKE, async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.isDataVolumeMissing = true
+  w.dockerDf = 'Images\t12GB\t2GB (16%)\n'
+  w.du = { '/Users/me/.local/share/containers': 6 * GB, '/Users/me/.local/share/docker': 11 * GB, '/Users/me/.cache': 2 * GB }
+  w.duDenied = ['/Users/me/.local/share/containers']
+  w.freeGb = 15
+  await $.session.start(START)
+  await clock.advance(1000)
+  expect(w.prompts[0]).toContain('Largest space users: Docker images (reclaimable 2GB (16%)) 12.0 GB; ~/.local/share/containers 6.4 GB; ~/.cache 2.1 GB.')
+  expect(w.prompts[0]).not.toContain('~/.local/share/docker')
 })
 
 test('space users are measured only on an alert or while gated, and at most every 30 minutes', async ($, on) => {

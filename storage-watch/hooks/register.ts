@@ -15,14 +15,13 @@ import {
   isGated,
   owesToast,
   parseDf,
-  parseDockerDf,
-  parseDuKb,
   parseGateGb,
   parseTiers,
   spaceCulpritLines,
+  spaceUsers,
   statusLine,
 } from './logic'
-import type { Limits, Reading, SpaceUser } from './logic'
+import type { Limits, Reading } from './logic'
 import type { AlertState } from '../types'
 
 type Config = {
@@ -89,9 +88,7 @@ async function readCulprits($: EngineInterface): Promise<string[]> {
     output($, ['docker', 'system', 'df', '--format', '{{.Type}}\t{{.Size}}\t{{.Reclaimable}}']),
     ...(home === '' ? [] : CACHE_DIRS.map(dir => output($, ['du', '-sk', `${home}/${dir}`]))),
   ])
-  const users: SpaceUser[] = [...parseDockerDf(docker ?? ''), ...folders.flatMap(out => parseDuKb(out, home) ?? [])]
-
-  return spaceCulpritLines(users)
+  return spaceCulpritLines(spaceUsers(docker ?? '', folders, home))
 }
 
 /** The space users for this tick: the stored ones while younger than CULPRIT_TTL_MS, else measured and stored. */

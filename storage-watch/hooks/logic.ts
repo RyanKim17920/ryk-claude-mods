@@ -291,6 +291,25 @@ export function parseDuKb(out: string, home: string): SpaceUser | null {
   return { name: path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path, bytes: Number(match[1]) * 1024 }
 }
 
+/**
+ * Rootless Docker's own storage: exactly what `docker system df` reports when that daemon answers. Docker
+ * Desktop's disk image is kept even then: it is a file on the host whose size can run well past what the
+ * daemon reports inside it.
+ */
+export const DOCKER_STORE_DIR = '.local/share/docker'
+
+/**
+ * The space users from `docker system df` and each folder's `du -sk`. When Docker answered, its rootless
+ * store folder is dropped so the same bytes are not named twice.
+ */
+export function spaceUsers(dockerOut: string, duOuts: readonly string[], home: string): SpaceUser[] {
+  const docker = parseDockerDf(dockerOut)
+  const folders = duOuts.flatMap(out => parseDuKb(out, home) ?? [])
+  const dockerStore = `~/${DOCKER_STORE_DIR}`
+
+  return [...docker, ...(docker.length === 0 ? folders : folders.filter(user => user.name !== dockerStore))]
+}
+
 /** The biggest space users, largest first, one short line each: `~/Library/Caches 12.3 GB`. */
 export function spaceCulpritLines(users: readonly SpaceUser[]): string[] {
   return [...users]

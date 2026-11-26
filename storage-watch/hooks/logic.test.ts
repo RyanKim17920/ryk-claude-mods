@@ -8,6 +8,7 @@ import {
   parseDockerDf,
   parseDuKb,
   spaceCulpritLines,
+  spaceUsers,
   asAlert,
   asStoredReading,
   crossedTier,
@@ -228,6 +229,31 @@ test('du -sk reads as a folder under ~, in bytes', () => {
   expect(parseDuKb('2048\t/opt/x\n', '/Users/me')).toEqual({ name: '/opt/x', bytes: 2048 * 1024 })
   expect(parseDuKb('du: /Users/me/.npm: No such file or directory\n', '/Users/me')).toBeNull()
   expect(parseDuKb('', '/Users/me')).toBeNull()
+})
+
+test('du -sk past unreadable files (rootless Podman subuid layers) still reads its total, even with errors mixed in', () => {
+  const partial = [
+    'du: cannot read directory \'/home/me/.local/share/containers/storage/overlay/3f2a/diff/root\': Permission denied',
+    '6291456\t/home/me/.local/share/containers',
+    'du: cannot read directory \'/home/me/.local/share/containers/storage/overlay/9c1b/diff/etc/ssl/private\': Permission denied',
+  ].join('\n')
+  expect(parseDuKb(partial, '/home/me')).toEqual({ name: '~/.local/share/containers', bytes: 6291456 * 1024 })
+})
+
+test('rootless Docker\'s store is dropped when docker system df answered, and kept when it did not', () => {
+  const du = ['1048576\t/home/me/.local/share/docker\n', '2048\t/home/me/.cache\n', 'du: /home/me/.npm: No such file or directory\n']
+  const docker = 'Images\t40.2GB\t30.1GB (74%)\n'
+  expect(spaceUsers(docker, du, '/home/me')).toEqual([
+    { name: 'Docker images (reclaimable 30.1GB (74%))', bytes: 40.2e9 },
+    { name: '~/.cache', bytes: 2048 * 1024 },
+  ])
+  expect(spaceUsers('', du, '/home/me')).toEqual([
+    { name: '~/.local/share/docker', bytes: 1048576 * 1024 },
+    { name: '~/.cache', bytes: 2048 * 1024 },
+  ])
+  // Docker Desktop's disk image is a host file, counted even when Docker answers.
+  const desktop = ['4096\t/Users/me/Library/Containers/com.docker.docker/Data\n']
+  expect(spaceUsers(docker, desktop, '/Users/me').map(user => user.name)).toContain('~/Library/Containers/com.docker.docker/Data')
 })
 
 test('the space users: the three biggest, largest first, nothing under 0.1 GB', () => {
