@@ -1,4 +1,5 @@
 # machine-local state
 *.bak-*
+state/
 .DS_Store
 node_modules/
