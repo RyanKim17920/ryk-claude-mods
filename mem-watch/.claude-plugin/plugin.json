@@ -1,14 +1,14 @@
 {
   "name": "mem-watch",
   "version": "0.3.0",
-  "description": "Watches macOS free memory and swap, shows them in the status line and alerts once (naming the top memory users) when either crosses its limit. While over, only light commands run. Always caps this session's top-level agents (subagents, and teammates while they work) at 4 and its background jobs at 3.",
+  "description": "Watches free memory and swap (macOS and Linux), shows them in the status line and alerts once (naming the top memory users) when either crosses its limit. While over, only light commands run. Always caps this session's top-level agents (subagents, and teammates while they work) at 4 and its background jobs at 3.",
   "author": {
     "name": "Ryan Kim"
   },
   "homepage": "https://github.com/RyanKim17920/ryk-claude-mods",
   "repository": "https://github.com/RyanKim17920/ryk-claude-mods",
   "license": "MIT",
-  "keywords": ["macos", "memory", "swap", "status-line", "hooks"],
+  "keywords": ["macos", "linux", "memory", "swap", "status-line", "hooks"],
   "types": "./types/index.d.ts",
   "userConfig": {
     "minFreePercent": {
@@ -56,7 +56,7 @@
     "systemNotifications": {
       "type": "boolean",
       "title": "System notifications",
-      "description": "Send a macOS notification when an alert fires.",
+      "description": "Send a system notification when an alert fires.",
       "default": true
     },
     "gateHeavyWork": {

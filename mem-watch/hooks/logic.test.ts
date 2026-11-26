@@ -13,6 +13,7 @@ import {
   owesToast,
   limitText,
   parseFreePercent,
+  parseMeminfo,
   parseMemsizeGb,
   parseSwapUsedGb,
   parseTopProcesses,
@@ -143,6 +144,41 @@ test('the stored reading is read defensively', () => {
   expect(asStoredReading({ freePercent: 12, swapGb: 3 })).toBeNull()
   expect(asStoredReading({ freePercent: '12', swapGb: 3, at: 5 })).toBeNull()
   expect(asStoredReading(undefined)).toBeNull()
+})
+
+const MEMINFO = [
+  'MemTotal:       16303428 kB',
+  'MemFree:          812344 kB',
+  'MemAvailable:    4075857 kB',
+  'Buffers:          123456 kB',
+  'Cached:          2345678 kB',
+  'SwapCached:        10240 kB',
+  'SwapTotal:       8388604 kB',
+  'SwapFree:        6291452 kB',
+  'HugePages_Total:       0',
+].join('\n')
+
+test('Linux /proc/meminfo: free is MemAvailable over MemTotal, swap is SwapTotal - SwapFree, and the RAM size', () => {
+  const reading = parseMeminfo(MEMINFO)
+  expect(reading?.freePercent).toBe((4075857 / 16303428) * 100)
+  expect(Math.round(reading?.freePercent ?? 0)).toBe(25)
+  expect(reading?.swapGb).toBe((8388604 - 6291452) / (1024 * 1024))
+  expect(reading?.ramGb).toBe(16303428 / (1024 * 1024))
+})
+
+test('Linux /proc/meminfo without MemAvailable (kernel < 3.14) counts MemFree + Buffers + Cached as free', () => {
+  const old = MEMINFO.split('\n').filter(line => !line.startsWith('MemAvailable')).join('\n')
+  expect(parseMeminfo(old)?.freePercent).toBe(((812344 + 123456 + 2345678) / 16303428) * 100)
+})
+
+test('Linux /proc/meminfo with no swap device reads 0 swap; odd or partial output is null', () => {
+  const noSwap = MEMINFO.replace('SwapTotal:       8388604 kB', 'SwapTotal:             0 kB').replace('SwapFree:        6291452 kB', 'SwapFree:              0 kB')
+  expect(parseMeminfo(noSwap)?.swapGb).toBe(0)
+  expect(parseMeminfo('')).toBeNull()
+  expect(parseMeminfo('cat: /proc/meminfo: No such file or directory')).toBeNull()
+  expect(parseMeminfo(MEMINFO.replace('MemTotal:       16303428 kB', 'MemTotal:              0 kB'))).toBeNull()
+  expect(parseMeminfo(MEMINFO.split('\n').filter(line => !line.startsWith('SwapFree')).join('\n'))).toBeNull()
+  expect(parseMeminfo('MemTotal: 100 kB\nSwapTotal: 0 kB\nSwapFree: 0 kB')).toBeNull()
 })
 
 test('macOS hw.memsize parses bytes to GB; anything else is null', () => {

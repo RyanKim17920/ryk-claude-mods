@@ -53,6 +53,39 @@ export function parseFreePercent(out: string): number | null {
 
 const KB_PER_GB = 1024 * 1024
 
+/**
+ * Linux's `/proc/meminfo` (`MemTotal:  16303428 kB` per line): free is `MemAvailable` (what can be
+ * handed out without swapping, the figure closest to macOS's free percentage) over `MemTotal`, swap
+ * in use is `SwapTotal - SwapFree`. A kernel older than 3.14 has no `MemAvailable`: `MemFree + Buffers
+ * + Cached` stands in. Null without a positive `MemTotal` or the swap lines.
+ */
+export function parseMeminfo(out: string): (Reading & { ramGb: number }) | null {
+  const kb = new Map<string, number>()
+  for (const line of out.split('\n')) {
+    const match = /^(\w+):\s+(\d+)\s*kB\s*$/.exec(line.trim())
+    if (match !== null) {
+      kb.set(match[1] ?? '', Number(match[2]))
+    }
+  }
+  const total = kb.get('MemTotal')
+  const swapTotal = kb.get('SwapTotal')
+  const swapFree = kb.get('SwapFree')
+  const memFree = kb.get('MemFree')
+  const buffers = kb.get('Buffers')
+  const cached = kb.get('Cached')
+  const legacy = memFree === undefined || buffers === undefined || cached === undefined ? undefined : memFree + buffers + cached
+  const available = kb.get('MemAvailable') ?? legacy
+  if (total === undefined || total <= 0 || available === undefined || swapTotal === undefined || swapFree === undefined) {
+    return null
+  }
+
+  return {
+    freePercent: Math.min(100, (available / total) * 100),
+    swapGb: Math.max(0, swapTotal - swapFree) / KB_PER_GB,
+    ramGb: total / KB_PER_GB,
+  }
+}
+
 /** `sysctl -n hw.memsize`: the physical memory in bytes, as GB; null on anything else. */
 export function parseMemsizeGb(out: string): number | null {
   const match = /^\s*(\d+)\s*$/.exec(out)

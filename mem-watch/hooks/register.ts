@@ -33,6 +33,7 @@ import {
   owesToast,
   parseDockerStats,
   parseFreePercent,
+  parseMeminfo,
   parseMemsizeGb,
   parseSwapUsedGb,
   parseTopProcesses,
@@ -66,6 +67,10 @@ const READING = 'reading'
 /** The `$.store` key of the latest culprits, stamped `at`: taken by a tick while over a limit, read by the gate and the alert. */
 const CULPRITS = 'culprits'
 const RUN = { timeoutMs: 10_000 }
+/** Said once in the transcript when no reading has ever come, so a blank status line is not a mystery. */
+const NO_READING =
+  'mem-watch: no memory reading on this machine (it reads memory_pressure and sysctl on macOS, /proc/meminfo on Linux). ' +
+  'Until one comes the status line stays empty and the memory gate stays open; the agent and background-job caps apply either way.'
 /** `docker stats` hangs on a daemon that is stuck: it gets less time, and a failure only drops the containers. */
 const DOCKER_RUN = { timeoutMs: 5_000 }
 /** A claim is read back after one to two of these, so two sessions that tick together rarely both win. */
@@ -80,8 +85,12 @@ const KNOWN_MAX = 500
 
 // One tick at a time: a slow command must not stack reads behind it.
 let isBusy = false
-/** macOS's physical memory in GB, read once. */
+/** Where this machine's readings come from, once one has read cleanly; kept for the load. */
+let source: 'macos' | 'linux' | null = null
+/** macOS's physical memory in GB, read once (a Linux reading carries its own). */
 let macRamGb: number | null = null
+/** Whether this load has said, once, that it has no reading. */
+let hasLoggedNoReading = false
 // Whether a person is at this session's prompt, as `session.start` says; false for a `-p` run or the SDK.
 let isInteractive = false
 /** When each subagent spawn this session let through, and that has not started yet, took its slot. */
@@ -126,9 +135,33 @@ async function readMacos($: EngineInterface): Promise<Snapshot | null> {
   return { swapGb, freePercent, ramGb: macRamGb }
 }
 
-// Null on anything but a clean read: another OS, a missing command, odd output.
+/** Linux: `/proc/meminfo`, which carries the memory size too. */
+async function readLinux($: EngineInterface): Promise<Snapshot | null> {
+  const run = await $.process.run(['cat', '/proc/meminfo'], RUN)
+
+  return run.exitCode === 0 ? parseMeminfo(run.stdout) : null
+}
+
+/**
+ * Null on anything but a clean read: an unsupported OS, a missing command, odd output. Until a source
+ * has read once, macOS then Linux is tried; after that only the one that worked.
+ */
 async function readMemory($: EngineInterface): Promise<Snapshot | null> {
-  return readMacos($)
+  if (source !== 'linux') {
+    const mac = await readMacos($).catch(() => null)
+    if (mac !== null) {
+      source = 'macos'
+    }
+    if (mac !== null || source === 'macos') {
+      return mac
+    }
+  }
+  const linux = await readLinux($).catch(() => null)
+  if (linux !== null) {
+    source = 'linux'
+  }
+
+  return linux
 }
 
 /** Runs a read for the culprits; any failure (no Docker, a timeout) is no output. */
@@ -241,6 +274,10 @@ async function tick($: EngineInterface, config: Config): Promise<void> {
     const snapshot = await readMemory($)
     if (snapshot === null) {
       showStatus($, config, undefined)
+      if (source === null && !hasLoggedNoReading) {
+        hasLoggedNoReading = true
+        $.ui.log(NO_READING)
+      }
 
       return
     }

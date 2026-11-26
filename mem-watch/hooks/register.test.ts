@@ -19,8 +19,14 @@ type World = {
   free: number
   swap: string
   isBroken: boolean
+  /** Which memory commands answer: macOS's sysctl and memory_pressure, Linux's /proc/meminfo, or neither. */
+  os: 'macos' | 'linux' | 'other'
   /** `sysctl -n hw.memsize` on macOS: 24 GB unless a test says otherwise. */
   ramBytes: number
+  /** What `cat /proc/meminfo` prints on Linux. */
+  meminfo: string
+  /** What the plugin logged to the transcript. */
+  logs: string[]
   statuses: (string | undefined)[]
   toasts: string[]
   notices: string[]
@@ -48,7 +54,7 @@ const ran = (stdout: string, exitCode = 0) => ({
 
 // Stands for the host beneath the plugin: the three commands, the display, the prompt queue.
 function world(on: On, clock?: { now: () => number }): World {
-  const w: World = { store: new Map(), afterSet: null, isStoreBroken: false, isInteractive: true, free: 60, swap: '5123.25M', isBroken: false, ramBytes: 24 * 1024 ** 3, statuses: [], toasts: [], notices: [], prompts: [], ran: [], docker: null, argv0: [], agents: [], spawned: [] }
+  const w: World = { store: new Map(), afterSet: null, isStoreBroken: false, isInteractive: true, free: 60, swap: '5123.25M', isBroken: false, os: 'macos', ramBytes: 24 * 1024 ** 3, meminfo: '', logs: [], statuses: [], toasts: [], notices: [], prompts: [], ran: [], docker: null, argv0: [], agents: [], spawned: [] }
   let jobs = 0
   on('process.run', ($, e) => {
     w.argv0.push(e.argv[0] ?? '')
@@ -58,10 +64,21 @@ function world(on: On, clock?: { now: () => number }): World {
     if (w.isBroken) {
       throw new Error('spawn sysctl ENOENT')
     }
+    if (e.argv[0] === 'cat') {
+      return w.os === 'linux' ? ran(w.meminfo) : ran('', 1)
+    }
     if (e.argv[0] === 'sysctl') {
+      if (w.os !== 'macos') {
+        return ran('', 255)
+      }
+
       return e.argv[2] === 'hw.memsize' ? ran(`${w.ramBytes}\n`) : ran(`total = 43008.00M  used = ${w.swap}  free = 1.00M  (encrypted)`)
     }
     if (e.argv[0] === 'memory_pressure') {
+      if (w.os !== 'macos') {
+        throw new Error('spawn memory_pressure ENOENT')
+      }
+
       return ran(`Pageouts: 1 \n\nSystem-wide memory free percentage: ${w.free}%\n`)
     }
 
@@ -74,6 +91,11 @@ function world(on: On, clock?: { now: () => number }): World {
   })
   on('ui.toast', ($, e) => {
     w.toasts.push(e.text)
+
+    return { value: undefined }
+  })
+  on('ui.log', ($, e) => {
+    w.logs.push(e.text)
 
     return { value: undefined }
   })
@@ -391,7 +413,7 @@ test('a reading older than three intervals fails open (the commands stopped answ
   expect(w.ran).toEqual([`Bash: ${DOCKER.command}`])
 })
 
-test('no reading at all (not macOS) leaves the gate open', async ($, on) => {
+test('no reading at all (neither macOS nor Linux) leaves the gate open', async ($, on) => {
   const clock = mock.clock(on)
   const w = world(on)
   w.isBroken = true
@@ -935,6 +957,51 @@ test('the cap is per session (2/2): session B, sharing A\'s store, starts its ow
   expect(w.spawned).toHaveLength(4)
 })
 
+/** `/proc/meminfo` on a 16 GB Linux machine: `availableGb` of it available, `swapUsedGb` of 8 GB swap in use. */
+const meminfo = (availableGb: number, swapUsedGb: number): string => {
+  const kb = (gb: number) => Math.round(gb * 1024 * 1024)
+
+  return [`MemTotal: ${kb(16)} kB`, `MemFree: ${kb(1)} kB`, `MemAvailable: ${kb(availableGb)} kB`, `SwapTotal: ${kb(8)} kB`, `SwapFree: ${kb(8 - swapUsedGb)} kB`].join('\n')
+}
+
+test('Linux: reads /proc/meminfo, shows the figures and alerts on low free memory', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.os = 'linux'
+  w.meminfo = meminfo(8, 1)
+  await $.session.start(START)
+  await clock.advance(1000)
+  expect(w.statuses.at(-1)).toBe('mem free 50% · swap 1G')
+  expect(w.logs).toEqual([])
+
+  w.meminfo = meminfo(2, 1)
+  await clock.advance(MINUTE)
+  expect(w.statuses.at(-1)).toBe('! mem free 13% · swap 1G')
+  expect(w.prompts).toHaveLength(1)
+  expect(w.prompts[0]).toContain('free at least 28%, swap at most 16G')
+  // Once Linux has answered, the macOS commands are not tried again.
+  const before = w.argv0.length
+  await clock.advance(MINUTE)
+  expect(w.argv0.slice(before).filter(word => word === 'sysctl' || word === 'memory_pressure')).toEqual([])
+})
+
+test('Linux: the automatic swap limit is the RAM size, and the gate refuses past it', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.os = 'linux'
+  w.meminfo = meminfo(12, 4)
+  await $.session.start(START)
+  await clock.advance(1000)
+  // 4 of 8 GB swap on a 16 GB machine: under the limit.
+  await $.tool.call(DOCKER)
+  expect(w.ran).toHaveLength(1)
+  w.meminfo = [`MemTotal: ${16 * 1024 * 1024} kB`, `MemAvailable: ${12 * 1024 * 1024} kB`, `SwapTotal: ${32 * 1024 * 1024} kB`, `SwapFree: ${15 * 1024 * 1024} kB`].join('\n')
+  await clock.advance(MINUTE)
+  expect(w.statuses.at(-1)).toBe('! mem free 75% · swap 17G')
+  const refused = await $.tool.call(DOCKER)
+  expect(refused.deny).toContain('swap at most 16G')
+})
+
 test('an explicit maxSwapGb overrides the RAM-sized default', { options: { maxSwapGb: 4 } }, async ($, on) => {
   const clock = mock.clock(on)
   const w = world(on)
@@ -956,4 +1023,20 @@ test('macOS: the automatic swap limit follows hw.memsize, which is read only onc
   expect(w.prompts[0]).toContain('swap at most 8G')
   await clock.advance(3 * MINUTE)
   expect(w.argv0.filter(word => word === 'sysctl')).toHaveLength(4 + 1)
+})
+
+test('neither macOS nor Linux: says so once in the transcript, and the agent cap still applies', { options: { maxConcurrentAgents: 1 } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.os = 'other'
+  w.agents = [agent('busy')]
+  await $.session.start(START)
+  await clock.advance(5 * MINUTE)
+  expect(w.statuses.every(text => text === undefined)).toBe(true)
+  expect(w.logs).toHaveLength(1)
+  expect(w.logs[0]).toContain('no memory reading on this machine')
+  expect(w.logs[0]).toContain('caps apply either way')
+  const spawn = await $.agent.spawn({ prompt: 'p', description: 'd', subagent_type: 'general-purpose' } as never)
+  expect('deny' in spawn ? spawn.deny : '').not.toBe('')
+  expect(w.spawned).toEqual([])
 })
