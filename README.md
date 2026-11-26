@@ -86,4 +86,6 @@ Restart Claude Code to load an update. Each mod's options are in its README and 
 <tr><td colspan="2" align="center"><img src="docs/demo/storage-watch.gif" alt="storage-watch: replay of real full-disk build failures (Nov 16) and a 98% full disk (Nov 21); no real after clip yet" width="640"></td></tr>
 </table>
 
-Each clip is a short walkthrough built from real recorded sessions. Captions and highlights are added, and terminal text is cropped but never edited. For storage-watch and branch-owners, the clip compares runs without and with the mod. Where a clip used a scaled-down limit, it says so on screen.
+The notice-dedupe, mem-watch and storage-watch clips are replays of real sessions from the author's own machine. A copy of each session is reopened with `claude --resume`, so the screen is Claude Code's own rendering. Project names, paths, process names and some message text are replaced, and some long outputs are shortened. The header shows the real local time of each step, sped up. The storage-watch clip has no after part, because its gate has not yet fired in a real session. The agent-budget clip is a chart of counts from the subagent transcripts on the same machine.
+
+The branch-owners, focus-compact and goal-refresh clips are short walkthroughs built from recorded sessions. Captions and highlights are added, and terminal text is cropped but never edited. Where a clip used a scaled-down limit, it says so on screen.
