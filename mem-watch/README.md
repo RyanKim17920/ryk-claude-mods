@@ -1,11 +1,13 @@
 # mem-watch
 
-Watches macOS free memory (`memory_pressure`) and swap (`sysctl vm.swapusage`) on a timer. It shows them in the status line and alerts once when either crosses its limit, naming the processes and Docker containers using the most memory. It does two things to keep a session from running the Mac out of memory:
+Watches free memory and swap on a timer: on macOS from `memory_pressure` and `sysctl vm.swapusage`, on Linux from `/proc/meminfo` (`MemAvailable` over `MemTotal`, and `SwapTotal - SwapFree`). It shows them in the status line and alerts once when either crosses its limit, naming the processes and Docker containers using the most memory. It does two things to keep a session from running the machine out of memory:
 
 - **The gate.** While a limit is crossed, only light commands run: reading, inspecting, small file chores, everyday git, stopping and cleanup. Everything else is refused, and so are new subagents. The gate lifts by itself on the first check after memory recovers.
 - **The cap.** Whatever memory says, this session may run at most 4 top-level agents (subagents, and teammates while they work a task) and 3 background jobs at once. This stops a fast fan-out before the next reading would catch it. Subagents that a subagent starts are not capped, and an idle teammate holds no slot.
 
 Nothing is ever stopped or killed by the mod.
+
+**Where it works.** macOS and Linux. On any other OS there is no reading: the mod says so once in the transcript, the status line stays empty and the memory gate stays open, but the cap still applies.
 
 ## Install
 
@@ -23,18 +25,18 @@ claude plugin install mem-watch --marketplace RyanKim17920/ryk-claude-mods
 
 ## Options (userConfig)
 
-The memory limits (`maxSwapGb` 28, `minFreePercent` 28) were tuned on a 24 GB Mac. Adjust them for your machine: see **Why 28%** below.
+`minFreePercent` 28 was tuned on a 24 GB Mac: see **Why 28%** below. `maxSwapGb` defaults to 0, which sizes the swap limit to the machine's physical memory (`hw.memsize` on macOS, `MemTotal` on Linux), so a 16 GB machine alerts past 16 GB of swap. Set it above 0 for a fixed limit.
 
 | Option | Default | What it does |
 | --- | --- | --- |
 | `minFreePercent` | 28 | Over the limit when free memory is below this % |
-| `maxSwapGb` | 28 | Over the limit when swap in use is above this many GB |
+| `maxSwapGb` | 0 | Over the limit when swap in use is above this many GB. 0: the size of physical memory |
 | `intervalSeconds` | 60 | How often memory is read (minimum 5) |
 | `cooldownMinutes` | 30 | At most one alert per this many minutes |
 | `wakeMainOnAlert` | true | Send one prompt to the main thread on alert (interactive sessions only) |
 | `showStatus` | true | Show the status-line figure |
 | `showToasts` | true | Show a toast on alert and on each gate refusal |
-| `systemNotifications` | true | Send a macOS notification on alert |
+| `systemNotifications` | true | Send a system notification on alert |
 | `gateHeavyWork` | true | Refuse new work while over a limit |
 | `gateMode` | "allowlist" | `allowlist`: only light commands run while gated. `patterns`: the older gate, which refuses only commands matching its built-in heavy-work rules (Docker, builds, installs, downloads, train/eval scripts) |
 | `gateBlockPatterns` | "" | More regexes to refuse while gated, even light commands, separated by ` ;; ` |
@@ -72,7 +74,7 @@ These rules close the bypasses a model could hit by accident or by rewording a r
 
 Running in the background (`cmd &`, `run_in_background`) is never a reason to refuse on its own. The cap handles that.
 
-The gate runs no command per tool call. It reads the last reading the timer stored in the mod's shared store, stamped with the time it was taken. A missing reading, or one older than 3 intervals, fails open. That covers machines other than macOS, which give no reading. Any error in the gate also lets the call through. Every session sharing the store is gated by the freshest reading. `-p` and SDK runs are gated too.
+The gate runs no command per tool call. It reads the last reading the timer stored in the mod's shared store, stamped with the time it was taken. A missing reading, or one older than 3 intervals, fails open. That covers machines other than macOS and Linux, which give no reading. Any error in the gate also lets the call through. Every session sharing the store is gated by the freshest reading. `-p` and SDK runs are gated too.
 
 The model is told that the command was not run and why, with the figure and the limit, which part was refused, and what still runs. When known, it also gets the largest memory users, and is told the pause lifts by itself and not to reword the command to get past it.
 

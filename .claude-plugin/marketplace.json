@@ -3,7 +3,7 @@
   "owner": {
     "name": "Ryan Kim"
   },
-  "description": "Claude Code mods (plugins built on TypeScript hook modules) for long sessions with many agents: context budgets and handoffs, compaction focus, standing goals, branch ownership, notification de-duplication, and memory and disk guards for macOS.",
+  "description": "Claude Code mods (plugins built on TypeScript hook modules) for long sessions with many agents: context budgets and handoffs, compaction focus, standing goals, branch ownership, notification de-duplication, and memory and disk guards for macOS and Linux.",
   "plugins": [
     {
       "name": "agent-budget",
@@ -28,7 +28,7 @@
     {
       "name": "mem-watch",
       "source": "./mem-watch",
-      "description": "Watches macOS free memory and swap, shows them in the status line and alerts once when either crosses its limit. Until memory recovers, a light-list gate lets only reading, cleanup, file chores and everyday git run and refuses everything else (subagents, Docker, evals, builds). A cap holds each session to 4 top-level subagents and 3 background jobs at once, whatever memory says."
+      "description": "Watches free memory and swap (macOS and Linux), shows them in the status line and alerts once when either crosses its limit. Until memory recovers, a light-list gate lets only reading, cleanup, file chores and everyday git run and refuses everything else (subagents, Docker, evals, builds). A cap holds each session to 4 top-level subagents and 3 background jobs at once, whatever memory says."
     },
     {
       "name": "notice-dedupe",
@@ -38,7 +38,7 @@
     {
       "name": "storage-watch",
       "source": "./storage-watch",
-      "description": "Watches free disk space on the macOS data volume, shows it in the status line and alerts once as it falls through each tier (20, 10, 5, 1 GB). At or below 5 GB free, a light-list gate lets only reading, cleanup, file chores and everyday git run and refuses everything else (subagents, Docker, downloads, installs, tree copies). It has no concurrency cap; mem-watch holds that."
+      "description": "Watches free disk space (the macOS data volume, or / on Linux), shows it in the status line and alerts once as it falls through each tier (20, 10, 5, 1 GB). At or below 5 GB free, a light-list gate lets only reading, cleanup, file chores and everyday git run and refuses everything else (subagents, Docker, downloads, installs, tree copies). It has no concurrency cap; mem-watch holds that."
     }
   ]
 }

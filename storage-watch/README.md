@@ -1,6 +1,6 @@
 # storage-watch
 
-Watches free disk space on the macOS data volume (`df -k /System/Volumes/Data`, falling back to `/`) on a timer. It shows it in the status line and alerts once as free space falls through each tier (20, 10, 5, 1 GB), naming the biggest space users. At or below `gateBelowGb` (5 GB by default), **only light commands and cleanup run**, so a session cannot keep filling the disk. The gate lifts by itself on the first check after free space is back above that tier. Nothing is ever deleted by the mod.
+Watches free disk space on a timer: the macOS data volume (`df -k /System/Volumes/Data`), or `/` where that volume does not exist, as on Linux. It shows it in the status line and alerts once as free space falls through each tier (20, 10, 5, 1 GB), naming the biggest space users. At or below `gateBelowGb` (5 GB by default), **only light commands and cleanup run**, so a session cannot keep filling the disk. The gate lifts by itself on the first check after free space is back above that tier. Nothing is ever deleted by the mod.
 
 ## Install
 
@@ -26,7 +26,7 @@ claude plugin install storage-watch --marketplace RyanKim17920/ryk-claude-mods
 | `wakeMainOnAlert` | false | Send one short prompt to the main thread on alert |
 | `showStatus` | true | Show the status-line figure |
 | `showToasts` | true | Show a toast on alert and on each gate refusal |
-| `systemNotifications` | true | Send a macOS notification on alert |
+| `systemNotifications` | true | Send a system notification on alert |
 | `gateHeavyWork` | true | Refuse new work at or below `gateBelowGb` |
 | `gateMode` | "allowlist" | `allowlist`: only light commands run while gated. `patterns`: the older gate, which refuses only commands matching its built-in heavy-work rules (Docker, builds, installs, downloads, train/eval scripts) |
 | `gateBelowGb` | 5 | Gate tier in GB free (at or below) |
@@ -52,7 +52,7 @@ There is no concurrency cap here: that lives only in mem-watch, so the two mods 
 
 ## The culprits
 
-On an alert, and while gated, the mod measures the biggest space users and names the top 3 in the alert prompt and in every refusal. It reads `docker system df` (with what pruning would give back) and runs `du -sk` on well-known cache folders under your home folder: `~/Library/Caches`, `~/.cache`, `~/.npm`, `~/.cargo/registry`, Xcode's `DerivedData`, Docker Desktop's disk image, `~/.Trash`, `~/miniconda3/pkgs`, `~/.gradle/caches` and `~/go/pkg/mod`. Each command has a 15 s timeout, and one that runs over drops only its own figure. The result is shared by every session and measured again at most every 30 minutes. Nothing is deleted.
+On an alert, and while gated, the mod measures the biggest space users and names the top 3 in the alert prompt and in every refusal. It reads `docker system df` (with what pruning would give back) and runs `du -sk` on well-known cache folders under your home folder: `~/Library/Caches`, `~/.cache`, `~/.npm`, `~/.cargo/registry`, Xcode's `DerivedData`, Docker Desktop's disk image, `~/.Trash`, `~/miniconda3/pkgs`, `~/.gradle/caches`, `~/go/pkg/mod`, and on Linux `~/.local/share/Trash`, rootless Podman and Docker storage (`~/.local/share/containers`, `~/.local/share/docker`) and `~/.m2/repository`. A folder that does not exist is skipped. Root-owned Docker storage (`/var/lib/docker`) is not measured with `du`; `docker system df` covers it. Each command has a 15 s timeout, and one that runs over drops only its own figure. The result is shared by every session and measured again at most every 30 minutes. Nothing is deleted.
 
 ## Disable
 

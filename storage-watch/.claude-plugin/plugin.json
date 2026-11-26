@@ -1,14 +1,14 @@
 {
   "name": "storage-watch",
   "version": "0.3.0",
-  "description": "Watches free disk space on the macOS data volume, shows it in the status line and alerts once as it falls through each tier (20, 10, 5, 1 GB), naming the biggest space users. At or below 5 GB free only light commands and cleanup run.",
+  "description": "Watches free disk space (the macOS data volume, or / on Linux), shows it in the status line and alerts once as it falls through each tier (20, 10, 5, 1 GB), naming the biggest space users. At or below 5 GB free only light commands and cleanup run.",
   "author": {
     "name": "Ryan Kim"
   },
   "homepage": "https://github.com/RyanKim17920/ryk-claude-mods",
   "repository": "https://github.com/RyanKim17920/ryk-claude-mods",
   "license": "MIT",
-  "keywords": ["macos", "disk-space", "storage", "status-line", "hooks"],
+  "keywords": ["macos", "linux", "disk-space", "storage", "status-line", "hooks"],
   "types": "./types/index.d.ts",
   "userConfig": {
     "tiersGb": {
@@ -50,7 +50,7 @@
     "systemNotifications": {
       "type": "boolean",
       "title": "System notifications",
-      "description": "Send a macOS notification when an alert fires.",
+      "description": "Send a system notification when an alert fires.",
       "default": true
     },
     "gateBelowGb": {
