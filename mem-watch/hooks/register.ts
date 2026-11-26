@@ -123,7 +123,7 @@ async function output($: EngineInterface, argv: string[], init: { timeoutMs: num
 /** The biggest memory users now: processes by resident size, and running containers. Never stops any. */
 async function readCulprits($: EngineInterface): Promise<string[]> {
   const [ps, docker] = await Promise.all([
-    output($, ['ps', '-axo', 'rss,pid,comm'], RUN),
+    output($, ['ps', '-eo', 'rss,pid,comm'], RUN),
     output($, ['docker', 'stats', '--no-stream', '--format', '{{.Name}}\t{{.MemUsage}}'], DOCKER_RUN),
   ])
 

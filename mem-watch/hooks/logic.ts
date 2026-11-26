@@ -51,7 +51,7 @@ export function parseFreePercent(out: string): number | null {
   return match === null ? null : Number(match[1])
 }
 
-/** `ps -axo rss,pid,comm`: the `count` largest by resident size (KB). */
+/** `ps -eo rss,pid,comm` (the same columns on macOS and Linux): the `count` largest by resident size (KB). */
 export function parseTopProcesses(out: string, count: number): Proc[] {
   const procs: Proc[] = []
   for (const line of out.split('\n')) {
