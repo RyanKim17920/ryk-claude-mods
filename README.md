@@ -71,7 +71,7 @@ Restart Claude Code to load an update. Each mod's options are in its README and 
 <table>
 <tr><th align="left">Mod</th><th align="left">What it does</th></tr>
 <tr><td valign="top"><a href="notice-dedupe/README.md">notice-dedupe</a></td><td>Stops task notifications and messages with no news from waking the main thread: empty "report delivered" notices and near-exact repeats. Counts what it drops.</td></tr>
-<tr><td colspan="2" align="center"><img src="docs/demo/notice-dedupe.gif" alt="notice-dedupe demo" width="640"></td></tr>
+<tr><td colspan="2" align="center"><img src="docs/demo/notice-dedupe.gif" alt="notice-dedupe: replay of real sessions before (Sep 22) and after (Nov 7) install, with names and text replaced" width="640"></td></tr>
 <tr><td valign="top"><a href="agent-budget/README.md">agent-budget</a></td><td>Tracks each agent's context size and warns as it grows. Past the threshold, a subagent is told to write its handoff brief and stop, and main is compacted in place. Every step re-reads the agent's whole context, so past the budget a fresh agent takes over from a short handoff and each step stays small.</td></tr>
 <tr><td colspan="2" align="center"><img src="docs/demo/agent-budget.gif" alt="agent-budget demo" width="640"></td></tr>
 <tr><td valign="top"><a href="branch-owners/README.md">branch-owners</a></td><td>Records which agent created each git branch and worktree. <code>/branch-owners</code> lists the unmerged branches with their owners.</td></tr>
