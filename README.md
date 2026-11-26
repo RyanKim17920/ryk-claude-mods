@@ -79,9 +79,9 @@ Restart Claude Code to load an update. Each mod's options are in its README and 
 <table>
 <tr><th align="left">Mod</th><th align="left">What it does</th></tr>
 <tr><td valign="top"><a href="notice-dedupe/README.md">notice-dedupe</a></td><td>Stops task notifications and messages with no news from waking the main thread: empty "report delivered" notices and near-exact repeats. Counts what it drops.</td></tr>
-<tr><td colspan="2" align="center"><img src="docs/demo/notice-dedupe.gif" alt="notice-dedupe demo" width="640"></td></tr>
+<tr><td colspan="2" align="center"><img src="docs/demo/notice-dedupe.gif" alt="notice-dedupe: replay of real sessions before (Sep 22) and after (Nov 7) install, with names and text replaced" width="640"></td></tr>
 <tr><td valign="top"><a href="agent-budget/README.md">agent-budget</a></td><td>Tracks each agent's context size and warns as it grows. Past the threshold, a subagent is told to write its handoff brief and stop, and main is compacted in place. Every step re-reads the agent's whole context, so past the budget a fresh agent takes over from a short handoff and each step stays small.</td></tr>
-<tr><td colspan="2" align="center"><img src="docs/demo/agent-budget.gif" alt="agent-budget demo" width="640"></td></tr>
+<tr><td colspan="2" align="center"><img src="docs/demo/agent-budget.gif" alt="agent-budget: weekly share of real subagents whose context passed 400k tokens, Oct 12 to Nov 25" width="640"></td></tr>
 <tr><td valign="top"><a href="branch-owners/README.md">branch-owners</a></td><td>Records which agent created each git branch and worktree. <code>/branch-owners</code> lists the unmerged branches with their owners.</td></tr>
 <tr><td colspan="2" align="center"><img src="docs/demo/branch-owners.gif" alt="branch-owners demo" width="640"></td></tr>
 <tr><td valign="top"><a href="focus-compact/README.md">focus-compact</a></td><td>Gives every compaction a standing focus and keeps each summary as a brief on disk. Asks a subagent to hand off when compaction stops shrinking its context.</td></tr>
@@ -91,7 +91,9 @@ Restart Claude Code to load an update. Each mod's options are in its README and 
 <tr><td valign="top"><a href="mem-watch/README.md">mem-watch</a></td><td>Watches free memory and swap (macOS and Linux), shows them in the status line and alerts once when either crosses its limit, naming the top memory users. While over, only light commands (reading, inspecting, file chores, everyday git, stopping, cleanup) run. Whatever memory says, it caps each session at 4 top-level subagents (their own children are not capped) and 3 background jobs at once.</td></tr>
 <tr><td colspan="2" align="center"><img src="docs/demo/mem-watch.gif" alt="mem-watch demo" width="640"></td></tr>
 <tr><td valign="top"><a href="storage-watch/README.md">storage-watch</a></td><td>Watches free disk space, shows it in the status line and alerts as it falls through each tier (20, 10, 5, 1 GB), naming the biggest space users. At or below 5 GB only light commands and cleanup run, and tree copies (<code>cp -r</code>) are refused.</td></tr>
-<tr><td colspan="2" align="center"><img src="docs/demo/storage-watch.gif" alt="storage-watch demo" width="640"></td></tr>
+<tr><td colspan="2" align="center"><img src="docs/demo/storage-watch.gif" alt="storage-watch: replay of real full-disk build failures (Nov 16), then its real 10 GB alert on a 98% full disk (Nov 21)" width="640"></td></tr>
 </table>
 
-Each clip is a short walkthrough built from real recorded sessions. Captions and highlights are added, and terminal text is cropped but never edited. For storage-watch and branch-owners, the clip compares runs without and with the mod. Where a clip used a scaled-down limit, it says so on screen.
+The notice-dedupe, mem-watch and storage-watch clips are replays of real sessions from the author's own machine: a copy of each session is reopened with `claude --resume` and filmed, with project names, paths, process names and some message text replaced and some long outputs shortened. The header shows the real local time of each step, sped up. The mem-watch clip predates the swap limit sized to physical memory, so its refusal names the older fixed limit of 28 GB. The storage-watch clip's after part is its real 10 GB alert, a toast and a notification that the transcript does not record; its 5 GB gate has not yet fired in a real session. The agent-budget clip is a chart of counts from the subagent transcripts on the same machine.
+
+The branch-owners, focus-compact and goal-refresh clips are short walkthroughs built from recorded sessions. Captions and highlights are added, and terminal text is cropped but never edited. Where a clip used a scaled-down limit, it says so on screen.
