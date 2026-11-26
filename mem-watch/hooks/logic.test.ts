@@ -160,15 +160,15 @@ const MEMINFO = [
 
 test('Linux /proc/meminfo: free is MemAvailable over MemTotal, swap is SwapTotal - SwapFree, and the RAM size', () => {
   const reading = parseMeminfo(MEMINFO)
-  expect(reading?.freePercent).toBe((4075857 / 16303428) * 100)
-  expect(Math.round(reading?.freePercent ?? 0)).toBe(25)
-  expect(reading?.swapGb).toBe((8388604 - 6291452) / (1024 * 1024))
-  expect(reading?.ramGb).toBe(16303428 / (1024 * 1024))
+  // 4075857 of 16303428 kB is exactly a quarter; 2097152 kB of swap in use is 2 GB.
+  expect(reading?.freePercent).toBe(25)
+  expect(reading?.swapGb).toBe(2)
+  expect(reading?.ramGb).toBe(15.548160552978516)
 })
 
 test('Linux /proc/meminfo without MemAvailable (kernel < 3.14) counts MemFree + Buffers + Cached as free', () => {
   const old = MEMINFO.split('\n').filter(line => !line.startsWith('MemAvailable')).join('\n')
-  expect(parseMeminfo(old)?.freePercent).toBe(((812344 + 123456 + 2345678) / 16303428) * 100)
+  expect(parseMeminfo(old)?.freePercent).toBe(20.127533914953347)
 })
 
 test('Linux /proc/meminfo with no swap device reads 0 swap; odd or partial output is null', () => {
