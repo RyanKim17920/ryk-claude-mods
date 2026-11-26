@@ -9,11 +9,15 @@ import {
   asStoredReading,
   decide,
   INITIAL_ALERT,
+  isOver,
   owesToast,
+  limitText,
   parseFreePercent,
+  parseMemsizeGb,
   parseSwapUsedGb,
   parseTopProcesses,
   statusLine,
+  swapLimitGb,
 } from './logic'
 import type { Limits } from './logic'
 
@@ -139,4 +143,27 @@ test('the stored reading is read defensively', () => {
   expect(asStoredReading({ freePercent: 12, swapGb: 3 })).toBeNull()
   expect(asStoredReading({ freePercent: '12', swapGb: 3, at: 5 })).toBeNull()
   expect(asStoredReading(undefined)).toBeNull()
+})
+
+test('macOS hw.memsize parses bytes to GB; anything else is null', () => {
+  expect(parseMemsizeGb('25769803776\n')).toBe(24)
+  expect(parseMemsizeGb('')).toBeNull()
+  expect(parseMemsizeGb('0')).toBeNull()
+  expect(parseMemsizeGb('sysctl: unknown oid')).toBeNull()
+})
+
+test('the swap limit: an explicit maxSwapGb wins; 0 sizes it to physical memory; unknown memory sets none', () => {
+  expect(swapLimitGb(28, 16)).toBe(28)
+  expect(swapLimitGb(0.5, null)).toBe(0.5)
+  expect(swapLimitGb(0, 24)).toBe(24)
+  expect(swapLimitGb(0, 15.548)).toBe(15.5)
+  expect(swapLimitGb(-3, 8)).toBe(8)
+  expect(swapLimitGb(0, null)).toBe(Number.POSITIVE_INFINITY)
+  expect(swapLimitGb(0, 0)).toBe(Number.POSITIVE_INFINITY)
+  // With no swap limit yet, only free memory can put a reading over, and the text says so.
+  const open = { ...LIMITS, maxSwapGb: swapLimitGb(0, null) }
+  expect(isOver({ freePercent: 60, swapGb: 500 }, open)).toBe(false)
+  expect(isOver({ freePercent: 10, swapGb: 0 }, open)).toBe(true)
+  expect(limitText(open)).toBe('free at least 28%, no swap limit yet')
+  expect(limitText(LIMITS)).toBe('free at least 28%, swap at most 28G')
 })

@@ -51,6 +51,32 @@ export function parseFreePercent(out: string): number | null {
   return match === null ? null : Number(match[1])
 }
 
+const KB_PER_GB = 1024 * 1024
+
+/** `sysctl -n hw.memsize`: the physical memory in bytes, as GB; null on anything else. */
+export function parseMemsizeGb(out: string): number | null {
+  const match = /^\s*(\d+)\s*$/.exec(out)
+  const bytes = match === null ? 0 : Number(match[1])
+
+  return bytes > 0 ? bytes / (1024 * KB_PER_GB) : null
+}
+
+/** The automatic swap limit, as a share of physical memory: swap past the size of RAM means trouble. */
+export const SWAP_LIMIT_PER_RAM = 1
+
+/**
+ * The swap limit in GB: `maxSwapGb` when it is set above 0, else `SWAP_LIMIT_PER_RAM` times the
+ * machine's physical memory (rounded to a tenth). With no memory size known yet, no swap limit:
+ * free memory alone can put a reading over.
+ */
+export function swapLimitGb(optionGb: number, ramGb: number | null): number {
+  if (optionGb > 0) {
+    return optionGb
+  }
+
+  return ramGb === null || !(ramGb > 0) ? Number.POSITIVE_INFINITY : Math.round(ramGb * SWAP_LIMIT_PER_RAM * 10) / 10
+}
+
 /** `ps -eo rss,pid,comm` (the same columns on macOS and Linux): the `count` largest by resident size (KB). */
 export function parseTopProcesses(out: string, count: number): Proc[] {
   const procs: Proc[] = []
@@ -103,7 +129,9 @@ export function asStoredReading(value: unknown): (Reading & { at: number }) | nu
 }
 
 export function limitText(limits: Limits): string {
-  return `free at least ${limits.minFreePercent}%, swap at most ${limits.maxSwapGb}G`
+  const swap = Number.isFinite(limits.maxSwapGb) ? `swap at most ${limits.maxSwapGb}G` : 'no swap limit yet'
+
+  return `free at least ${limits.minFreePercent}%, ${swap}`
 }
 
 export function figures(reading: Reading): string {

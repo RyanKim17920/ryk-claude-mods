@@ -20,8 +20,8 @@
     "maxSwapGb": {
       "type": "number",
       "title": "Maximum swap (GB)",
-      "description": "Alert when swap in use rises above this many gigabytes.",
-      "default": 28
+      "description": "Alert when swap in use rises above this many gigabytes. 0 (the default) sizes it to the machine: the amount of physical memory (24 on a 24 GB machine).",
+      "default": 0
     },
     "intervalSeconds": {
       "type": "number",

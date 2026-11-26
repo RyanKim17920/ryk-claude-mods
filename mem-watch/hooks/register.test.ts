@@ -19,6 +19,8 @@ type World = {
   free: number
   swap: string
   isBroken: boolean
+  /** `sysctl -n hw.memsize` on macOS: 24 GB unless a test says otherwise. */
+  ramBytes: number
   statuses: (string | undefined)[]
   toasts: string[]
   notices: string[]
@@ -46,7 +48,7 @@ const ran = (stdout: string, exitCode = 0) => ({
 
 // Stands for the host beneath the plugin: the three commands, the display, the prompt queue.
 function world(on: On, clock?: { now: () => number }): World {
-  const w: World = { store: new Map(), afterSet: null, isStoreBroken: false, isInteractive: true, free: 60, swap: '5123.25M', isBroken: false, statuses: [], toasts: [], notices: [], prompts: [], ran: [], docker: null, argv0: [], agents: [], spawned: [] }
+  const w: World = { store: new Map(), afterSet: null, isStoreBroken: false, isInteractive: true, free: 60, swap: '5123.25M', isBroken: false, ramBytes: 24 * 1024 ** 3, statuses: [], toasts: [], notices: [], prompts: [], ran: [], docker: null, argv0: [], agents: [], spawned: [] }
   let jobs = 0
   on('process.run', ($, e) => {
     w.argv0.push(e.argv[0] ?? '')
@@ -57,7 +59,7 @@ function world(on: On, clock?: { now: () => number }): World {
       throw new Error('spawn sysctl ENOENT')
     }
     if (e.argv[0] === 'sysctl') {
-      return ran(`total = 43008.00M  used = ${w.swap}  free = 1.00M  (encrypted)`)
+      return e.argv[2] === 'hw.memsize' ? ran(`${w.ramBytes}\n`) : ran(`total = 43008.00M  used = ${w.swap}  free = 1.00M  (encrypted)`)
     }
     if (e.argv[0] === 'memory_pressure') {
       return ran(`Pageouts: 1 \n\nSystem-wide memory free percentage: ${w.free}%\n`)
@@ -338,7 +340,7 @@ test('over a limit: heavy Bash and the Agent tool are refused with a calm reason
   expect(refused.deny).toContain('this command was not run')
   expect(refused.deny).toContain('this command was not run')
   expect(refused.deny).toContain('free 12% · swap 5G')
-  expect(refused.deny).toContain('free at least 28%, swap at most 28G')
+  expect(refused.deny).toContain('free at least 28%, swap at most 24G')
   expect(refused.deny).toContain('lifts by itself when memory recovers')
   expect(w.toasts.length - toastsBefore).toBe(1)
   expect(w.toasts.at(-1)).toBe('paused docker run: free 12% · swap 5G')
@@ -931,4 +933,27 @@ test('the cap is per session (2/2): session B, sharing A\'s store, starts its ow
     expect((await $.tool.call(BG(`sleep ${n}`))).deny).toBeUndefined()
   }
   expect(w.spawned).toHaveLength(4)
+})
+
+test('an explicit maxSwapGb overrides the RAM-sized default', { options: { maxSwapGb: 4 } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.swap = '5.00G'
+  await $.session.start(START)
+  await clock.advance(1000)
+  expect(w.statuses.at(-1)).toBe('! mem free 60% · swap 5G')
+  expect(w.prompts[0]).toContain('swap at most 4G')
+})
+
+test('macOS: the automatic swap limit follows hw.memsize, which is read only once', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.ramBytes = 8 * 1024 ** 3
+  w.swap = '9.00G'
+  await $.session.start(START)
+  await clock.advance(1000)
+  expect(w.statuses.at(-1)).toBe('! mem free 60% · swap 9G')
+  expect(w.prompts[0]).toContain('swap at most 8G')
+  await clock.advance(3 * MINUTE)
+  expect(w.argv0.filter(word => word === 'sysctl')).toHaveLength(4 + 1)
 })

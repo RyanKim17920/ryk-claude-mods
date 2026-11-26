@@ -33,15 +33,20 @@ import {
   owesToast,
   parseDockerStats,
   parseFreePercent,
+  parseMemsizeGb,
   parseSwapUsedGb,
   parseTopProcesses,
   statusLine,
+  swapLimitGb,
 } from './logic'
 import type { Limits, Reading } from './logic'
 import type { AlertState } from '../types'
 
 type Config = {
+  /** `maxSwapGb` resolved: set once the machine's memory size is known when the option is automatic (0). */
   limits: Limits
+  /** The `maxSwapGb` option as given: above 0 a fixed limit, else automatic. */
+  swapOptionGb: number
   intervalMs: number
   wakesMain: boolean
   showsStatus: boolean
@@ -75,6 +80,8 @@ const KNOWN_MAX = 500
 
 // One tick at a time: a slow command must not stack reads behind it.
 let isBusy = false
+/** macOS's physical memory in GB, read once. */
+let macRamGb: number | null = null
 // Whether a person is at this session's prompt, as `session.start` says; false for a `-p` run or the SDK.
 let isInteractive = false
 /** When each subagent spawn this session let through, and that has not started yet, took its slot. */
@@ -97,16 +104,31 @@ let launchingJobs = 0
 const asNumber = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
 
-// Null on anything but a clean read: another OS, a missing command, odd output.
-async function readMemory($: EngineInterface): Promise<Reading | null> {
+/** A reading with the machine's physical memory, when known: what an automatic swap limit is sized from. */
+type Snapshot = Reading & { ramGb: number | null }
+
+/** macOS: `sysctl vm.swapusage` and `memory_pressure`, and `hw.memsize` until it has read once. */
+async function readMacos($: EngineInterface): Promise<Snapshot | null> {
   const [swap, pressure] = await Promise.all([
     $.process.run(['sysctl', '-n', 'vm.swapusage'], RUN),
     $.process.run(['memory_pressure'], RUN),
   ])
   const swapGb = swap.exitCode === 0 ? parseSwapUsedGb(swap.stdout) : null
   const freePercent = pressure.exitCode === 0 ? parseFreePercent(pressure.stdout) : null
+  if (swapGb === null || freePercent === null) {
+    return null
+  }
+  macRamGb ??= await $.process
+    .run(['sysctl', '-n', 'hw.memsize'], RUN)
+    .then(run => (run.exitCode === 0 ? parseMemsizeGb(run.stdout) : null))
+    .catch(() => null)
 
-  return swapGb === null || freePercent === null ? null : { swapGb, freePercent }
+  return { swapGb, freePercent, ramGb: macRamGb }
+}
+
+// Null on anything but a clean read: another OS, a missing command, odd output.
+async function readMemory($: EngineInterface): Promise<Snapshot | null> {
+  return readMacos($)
 }
 
 /** Runs a read for the culprits; any failure (no Docker, a timeout) is no output. */
@@ -216,12 +238,14 @@ async function tick($: EngineInterface, config: Config): Promise<void> {
   }
   isBusy = true
   try {
-    const reading = await readMemory($)
-    if (reading === null) {
+    const snapshot = await readMemory($)
+    if (snapshot === null) {
       showStatus($, config, undefined)
 
       return
     }
+    const { ramGb, ...reading } = snapshot
+    config.limits.maxSwapGb = swapLimitGb(config.swapOptionGb, ramGb)
     showStatus($, config, statusLine(reading, config.limits))
     const now = await $.clock.now()
     // Shared with every session's gate; any session's fresh reading counts.
@@ -290,12 +314,14 @@ async function runBash<R>($: EngineInterface, config: Config, e: GateCall, next:
 }
 
 export const register: Register = (on, options) => {
+  const swapOptionGb = asNumber(options.maxSwapGb, 0)
   const config: Config = {
     limits: {
       minFreePercent: asNumber(options.minFreePercent, 28),
-      maxSwapGb: asNumber(options.maxSwapGb, 28),
+      maxSwapGb: swapLimitGb(swapOptionGb, null),
       cooldownMs: asNumber(options.cooldownMinutes, 30) * 60_000,
     },
+    swapOptionGb,
     intervalMs: Math.max(5, asNumber(options.intervalSeconds, 60)) * 1000,
     wakesMain: options.wakeMainOnAlert !== false,
     showsStatus: options.showStatus !== false,
