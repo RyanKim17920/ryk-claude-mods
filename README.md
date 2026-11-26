@@ -18,7 +18,15 @@ Each mod handles one of these.
 ## Requirements
 
 - Claude Code 2.1.330 or later. The mods were built against 2.1.330 and tested on 2.1.331; older versions may lack parts of the hook API they use.
-- mem-watch and storage-watch are macOS only (they read `memory_pressure`, `vm_stat` and `sysctl`, and the free space on `/System/Volumes/Data`). The other mods run wherever Claude Code does.
+- mem-watch and storage-watch run on macOS and Linux. mem-watch reads `memory_pressure` and `sysctl` on macOS and `/proc/meminfo` on Linux; storage-watch reads `df` on the macOS data volume, or `/` elsewhere. On another OS mem-watch has no reading: it says so once, its status line stays empty and its memory gate stays open, but its agent and job caps still apply. The other mods run wherever Claude Code does.
+
+### Defaults that change behaviour
+
+A few defaults act even when nothing is wrong. Change them with the mod's options, for example in `settings.json`: `"pluginConfigs": { "mem-watch@ryk-claude-mods": { "options": { "maxConcurrentAgents": 8 } } }`.
+
+- **mem-watch caps every session at 4 top-level agents and 3 background jobs at once**, whatever memory says. A fifth subagent or fourth `run_in_background` job is refused until one finishes. Set `maxConcurrentAgents` or `maxBackgroundJobs` (0 turns a cap off).
+- **mem-watch's swap limit is the size of physical memory** unless `maxSwapGb` is set above 0. Its free-memory limit (`minFreePercent` 28) was tuned on a 24 GB Mac.
+- **agent-budget appends one sentence to every spawned agent's prompt** (`addRuleToSpawns`, on by default), telling it to follow an `[agent-budget]` note. Turn it off to leave prompts untouched; agents may then ignore the note.
 
 ## Install
 
@@ -80,7 +88,7 @@ Restart Claude Code to load an update. Each mod's options are in its README and 
 <tr><td colspan="2" align="center"><img src="docs/demo/focus-compact.gif" alt="focus-compact demo" width="640"></td></tr>
 <tr><td valign="top"><a href="goal-refresh/README.md">goal-refresh</a></td><td>Keeps a long session working toward the exact goal you set. It re-sends the session's standing goal (and the native <code>/goal</code> condition) to Claude every 10 turns, every 20 minutes and after each compaction, on turns already happening. The goal can be changed by talking it over, and it is also pinned under the prompt.</td></tr>
 <tr><td colspan="2" align="center"><img src="docs/demo/goal-refresh.gif" alt="goal-refresh demo" width="640"></td></tr>
-<tr><td valign="top"><a href="mem-watch/README.md">mem-watch</a></td><td>Watches macOS free memory and swap, shows them in the status line and alerts once when either crosses its limit, naming the top memory users. While over, only light commands (reading, inspecting, file chores, everyday git, stopping, cleanup) run. Whatever memory says, it caps each session at 4 top-level subagents (their own children are not capped) and 3 background jobs at once.</td></tr>
+<tr><td valign="top"><a href="mem-watch/README.md">mem-watch</a></td><td>Watches free memory and swap (macOS and Linux), shows them in the status line and alerts once when either crosses its limit, naming the top memory users. While over, only light commands (reading, inspecting, file chores, everyday git, stopping, cleanup) run. Whatever memory says, it caps each session at 4 top-level subagents (their own children are not capped) and 3 background jobs at once.</td></tr>
 <tr><td colspan="2" align="center"><img src="docs/demo/mem-watch.gif" alt="mem-watch demo" width="640"></td></tr>
 <tr><td valign="top"><a href="storage-watch/README.md">storage-watch</a></td><td>Watches free disk space, shows it in the status line and alerts as it falls through each tier (20, 10, 5, 1 GB), naming the biggest space users. At or below 5 GB only light commands and cleanup run, and tree copies (<code>cp -r</code>) are refused.</td></tr>
 <tr><td colspan="2" align="center"><img src="docs/demo/storage-watch.gif" alt="storage-watch demo" width="640"></td></tr>
